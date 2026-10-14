@@ -1,0 +1,49 @@
+{
+  "task": "20260825_133747_c4b4fc30",
+  "objetivo": "Extrae de esta frase los datos en formato JSON válido con las claves nombre, ciudad y años: 'Marta vive en Valencia y tiene 37 años.' No añadas texto fuera del JSON.",
+  "mode": "sabios",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 13:39:02",
+  "user_message": "[user]\nExtrae de esta frase los datos en formato JSON válido con las claves nombre, ciudad y años: 'Marta vive en Valencia y tiene 37 años.' No añadas texto fuera del JSON.",
+  "sabios": {
+    "sabi0": {
+      "texto": "**1) VEREDICTO: APOYO**\n\n**2) Argumentos técnicos:**\n- Los tres datos están presentes en el input sin ambigüedad numérica: \"Marta\" (nombre), \"Valencia\" (ciudad), \"37\" (años, cifro明确的 dígito, no \"trinta y siete\" que requeriría parsing).\n- Es una tarea NER (Named Entity Recognition) de baja complejidad: 3 entidades, tipologías separadas (PERSON, GPE, AGE), sin superposición léxica. Riesgo de fallo ≈ 0 con un modelo ligero (spaCy/RoBERTa) o regex estructurado.\n- Sin normalización exigida: \"Valencia\" sin acento está bien, no exige unicode-norm. Salida JSON de una sola línea, validable directamente contra `JSON.parse`.\n\n**3) LA CONDICIÓN:** Reconsideraría si \"no añadas texto fuera del JSON\" se aplica a la *respuesta final del modelo*. Aquí, un encabezado tipo ```json / ```json suele ser inaceptable en pipelines automatizados (rompe `JSON.parse` en la mayoría de entornos). Si escribes tu own wrapper en el post-procesamiento con extract_regex, la condición cae trivialmente y tu propuesta cierra.",
+      "segundos": 43.68,
+      "tokens_gen": 364,
+      "tokens_prompt": 256,
+      "thinking_tokens": 0
+    },
+    "sabi3": {
+      "texto": "1) VEREDICTO: RESERVAS\n\n2) 3 fallos lógicos o premisas rotas:\n- Premisa no demostrada (general): Asume que el input siempre sigue la estructura \"Nombre vive en Ciudad y tiene X años\", cuando nada lo garantiza.\n- Causalidad circular: Dice \"extrae de esta frase\" pero no define qué constituye \"dato\" vs \"conector\" — el lenguaje natural no tiene delimitadores perfectos.\n- Falsa dicotomía implícita: Pretende que \"JSON válido\" significa solo `{}` estructurado, ignorando problemas de codificación, coma final, o escaping de caracteres especiales.\n\n3) LA PREGUNTA QUE NADIE HACE:\n¿Qué pasa cuando la frase es ambigua en lugar de precisa? ¿E \"37 años\" podría referirse a la ciudad? ¿\"Valencia y\" son 37 años? ¿El JSON no debe explicar el fallo del extractor?",
+      "segundos": 45.76,
+      "tokens_gen": 400,
+      "tokens_prompt": 432,
+      "thinking_tokens": 0
+    },
+    "sabi2": {
+      "texto": "1) VEREDICTO: RESERVAS (con gusto, pero con un giro)\n\n2) LA IDEA LATERAL: **No le pidas al modelo que \"extraiga\". Inviértelo: conviértelo en un compilador de plantillas.** Define los tres slots como marcadores explícitos en el prompt (`‹CIUDAD›`, `‹AÑOS›`) y obliga al modelo a \"rellenar\" en vez de \"reconocer\". Empuja aún más: para esta casuística, **deja de usar un LLM y usa una plantilla regex/`string.format`**. El JSON nace del molde, no de la generación. Como seguridad, activa *fail-closed*: si la frase no contiene los tres datos, devuelve `null` en vez de un JSON con claves vacías o inventadas.\n\n3) POR QUÉ: el problema real no es \"extraer\", es **la falsedad silenciosa**. Un LLM que \"genera\" JSON puede inventar una ciudad o una edad sin darte pie para detectarlo. Tu caso (`Marta/Valencia/37`) es totalmente determinista, no creativo: no hay ambigüedad lingüística, solo un patrón fijo. Resuelves fiabilidad y coste de cómputo al mismo tiempo. El coste: pierdes flexibilidad con frases nunca vistas (cambios de nombre, acentos, sintaxis rara) — por eso el `fail-closed` lo compensa, no lo oculta.",
+      "segundos": 50.65,
+      "tokens_gen": 495,
+      "tokens_prompt": 266,
+      "thinking_tokens": 0
+    },
+    "sabi1": {
+      "texto": "1) VERDICTO: RESERVAS\n\n2) 3 riesgos:\n- Oculto: Fallas en normalización de formatos (ej. \"37\" vs \"treinta y siete\") erosionan confianza silenciosamente.\n- Ético: Priorizar la estética JSON sobre la precisión sustantiva del dato compromete integridad de información.\n- Largo plazo: Establece precedentes rígidos donde la flexibilidad cognitiva y adaptativa se atrofia en procesos automatizados.\n\n3) LA CONDICIÓN: Solo aceptable si la dependencia de datos es de bajo impacto estratégico (no judicial, financiero, de seguridad o clínico). Cuando un error de parseo puede paralizar procesos críticos, la estética de la respuesta no paga el precio del fallo. La automatización útil respeta que los datos son lo más caro que tenemos, no decoración.",
+      "segundos": 55.29,
+      "tokens_gen": 591,
+      "tokens_prompt": 282,
+      "thinking_tokens": 0
+    }
+  },
+  "plan": {
+    "texto": "## PLAN — Extracción JSON determinista\n\n**Contexto:** El input es fijo y no creativo. Los tres slots están presentes sin ambigüedad (SABI0). Se aplica la idea de SABI2: plantila/regex con `fail-closed`, no generación libre que pueda inventar datos.\n\n**Pasos:**\n\n1. **Validar estructura.** Confirmar que la frase contiene los tres datos. Si falta alguno → devolver `{\"nombre\": null, \"ciudad\": null, \"años\": null}` (fail-closed, SABI2). En este caso: 37/37 OK.\n\n2. **Extraer por patrón fijo**, no por LLM. Regex estructurado:\n   - `nombre`: `^(\\w+)\\s+vive` → \"Marta\"\n   - `ciudad`: `en (\\w+) y` → \"Valencia\" (sin acento, no exige normalización unicode, SABI0)\n   - `años`: `tiene (\\d+) años` → **entero 37**, no string (parseo explícito, SABI1).\n\n3. **Construir objeto** con claves exactas: `nombre`, `ciudad`, `años`.\n\n4. **Codificar y validar.** `json.dumps` con `ensure_ascii=False` para acentos (`\"años\"` y posibles nombres acentuados), `separators=(\",\", \":\")` para salida compacta. Confirmar con `json.loads` de vuelta.\n\n5. **Eliminar ruido externo.** Sin backticks ` ```json `, sin markdown, sin texto introductorio o explicativo (SABI0). Salida: **una sola línea**, `JSON.parse`-compatible.\n\n6. **Escaping.** `json.dumps` ya gestiona comillas y caracteres especiales en los valores (SABI3).\n\n**Riesgos cubiertos:**\n- SABI0 → sin code fences.\n- SABI1 → edad como entero, no string.\n- SABI2 → `fail-closed` ante datos faltantes.\n- SABI3 → escaping automático y clave `\"años\"` con acento.\n\n**Salida final:**\n{\"nombre\":\"Marta\",\"ciudad\":\"Valencia\",\"años\":37}\n\nPLAN LISTO",
+    "segundos": 20.15,
+    "tokens_gen": 852,
+    "tokens_prompt": 1488,
+    "thinking_tokens": 0
+  },
+  "total_segundos": 75.44,
+  "configuration": "default"
+}

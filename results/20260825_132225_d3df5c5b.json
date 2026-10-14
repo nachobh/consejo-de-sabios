@@ -1,0 +1,50 @@
+{
+  "task": "20260825_132225_d3df5c5b",
+  "objetivo": "Evalúa esta afirmación: 'Después de cambiar el prompt, el tiempo medio de respuesta bajó de 10 a 8 segundos y los usuarios satisfechos subieron del 60% al 65%; por tanto, el prompt causó la mejora'. Señala al menos dos amenazas a la inferencia causal y propone un experimento A/B que las reduzca.",
+  "mode": "solo",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 13:27:05",
+  "user_message": "[user]\nEvalúa esta afirmación: 'Después de cambiar el prompt, el tiempo medio de respuesta bajó de 10 a 8 segundos y los usuarios satisfechos subieron del 60% al 65%; por tanto, el prompt causó la mejora'. Señala al menos dos amenazas a la inferencia causal y propone un experimento A/B que las reduzca.",
+  "sabios": {
+    "sabi0": {
+      "texto": "1) VEREDICTO: RECHAZO\n\n2) Tres argumentos técnicos contra la inferencia causal:\n\n**a) Sin grupo de control concurrente, el antes/after es retrospectivo.** Comparar \"antes vs. después\" sin brazos paralelos es vulnerado a *confounders* por diseño. El cambio de prompt no se aísla de ninguna otra variable que coincida en el tiempo.\n\n**b) Confusión temporal (el \"después\" ≠ \"por causa de\").** El cambio se produce junto a otras variables: ¿escalado de infra (GPU/caching), ¿cambio de modelo base, ¿campaña, ¿estacionalidad? Un pico de CSAT al 65% es perfectamente coherente con un efecto Hawthrone o ruido externo, no con tu prompt. El orden de eventos no establece causalidad.\n\n**c) Regresión a la media.** Si los 10s/60% anteriores eran una anomalía alta, volver al promedio es estadística, no intervención. Sin control, no puedes distinguir señal del reflujo natural.\n\nAdemás, el tiempo de respuesta mide *latencia*, no calidad del prompt; una mejora de infra ya lo movería.\n\n3) LA CONDICIÓN: Un experimento A/B **concurrente 50/50** (brazo A = prompt viejo, brazo B = prompt nuevo), con infraestructura idéntica en ambos, poder 80% y α=0.05. Confirma causalidad solo si la delta de latencia y CSAT es **estadísticamente significativa (p<0.05)** y **aislada** del resto del sistema. Sin ese brazo de control, la afirmación es solo correlación.",
+      "segundos": 119.22,
+      "tokens_gen": 1082,
+      "tokens_prompt": 295,
+      "thinking_tokens": 0
+    },
+    "sabi2": {
+      "texto": "**1) VEREDICTO: RESERVAS.** Es correlación, no causalidad. El \"por tanto\" es una trampa lógica.\n\n**2) DOS AMENAZAS A LA INFERENCIA CAUSAL**\n- **Confundente temporal:** En el periodo cambiado pudieron ocurrir otras cosas simultáneas: rediseño de UI, cambio de región, estacionalidad, mejora de caché. Atribuyes el efecto al prompt cuando la realidad es *\"hizo X y Y a la vez\"*.\n- **Regresión a la media + sin control concurrente:** El \"antes\" (10s/60%) pudo ser un pico aleatorio y el \"después\" una caída natural. Sin grupo de control midiendo en el **mismo periodo**, no distingues cambio real del ruido.\n\n**3) LA IDEA LATERAL:** Da la vuelta al diseño. Olvídate del antes/después (imposible aislar causalidad) y haz un **A/B aleatorizado y concurrente**: mitad con prompt nuevo, mitad con el original, midiendo EN EL MISMO MOMENTO. Así tráfico, UI y temporada se comparten y se cancelan. Remate radical: compara el prompt contra **cero prompt** y mide **tasa de tarea completada**, no segundos ni sonrisa (fáciles de inflar).\n\n**POR QUÉ:** Antes/después solo mide tiempo; concurrente aísla el prompt absorbiendo los confusores. Coste: instrumentar la split, poder estadístico y un periodo más largo antes de celebrar.",
+      "segundos": 159.21,
+      "tokens_gen": 1686,
+      "tokens_prompt": 305,
+      "thinking_tokens": 0
+    },
+    "sabi1": {
+      "texto": "1) VEREDICTO: RECHAZO.\n\n2) 3 riesgos:\n- Oculto: Coincidencia temporal o regresión a la media; la reducción de latencia podría ser un artefacto estacional del tráfico, no del prompt.\n- Ético: Ingeniería de métricas superficiales (\"satisfacción percibida\") para justificar una inversión, ignorando si la velocidad compromete la precisión o veracidad del modelo.\n- Largo plazo: Crea una dependencia técnica frágil; cuando la arquitectura cambie, este prompt pierde eficacia bruscamente, generando deuda técnica inmediata.\n\n3) LA CONDICIÓN: Solo aceptable si ejecutamos un experimento A/B randomizado con grupo control histórico durante mínimo 14 días, midiendo retención real a 30 días y costo por usuario activo, no solo latencia y clics felices.",
+      "segundos": 204.81,
+      "tokens_gen": 2071,
+      "tokens_prompt": 321,
+      "thinking_tokens": 0
+    },
+    "sabi3": {
+      "texto": "1) VERDICTO: RESERVAS.\n\n2) 3 FALLOS LÓGICOS O PREMISAS ROTAS:\n1. (Confusión Correlación-Causalidad): Asumes que el prompt fue la única variable cambiada, ignorando actualizaciones de backend, nuevas rutas de red o picos de tráfico coincidentes.\n2. (Sesgo de Selección): Los usuarios intolerantes al tiempo (>8s) abandonaron la app antes de dar su nota, contaminando la muestra de satisfacción y creando una media artificial.\n3. (Verdad Post-Hoc): Interpreta los números para confirmar la teoría; si la relación no fuera lineal, los mismos datos te habrían pedido un A/B real, no una narración.\n\n3) LA PREGUNTA QUE NADIE HACE:\nSi eliminas el prompt y las métricas vuelven a 10 segundos, ¿será culpa del prompt o serás incapaz de detectar el cambio? Sin un grupo control concurrente, tu \"verdad\" es una ilusión narrativa, no evidencia.",
+      "segundos": 247.54,
+      "tokens_gen": 3455,
+      "tokens_prompt": 471,
+      "thinking_tokens": 0
+    }
+  },
+  "respuesta_directa": {
+    "texto": "# EVALUACIÓN DE LA AFIRMACIÓN CAUSAL\n\n## Veredicto general\nLa inferencia es **débil**. La premisa (correlación temporal entre cambio de prompt y mejora) no justifica la conclusión (el prompt *causó* la mejora). Falta controlar variables alternativas.\n\n---\n\n## Amenazas a la inferencia causal (mínimo 2)\n\n**1. Confusión por variables externas (confounding / sesgo de historia).**\nEl \"baseline\" y el \"post-cambio\" se miden en momentos distintos. Entre ambos pudieron ocurrir cambios concurrentes no controlados:\n- Mejora de infraestructura (más CPUs, caché, despliegue de backend).\n- Diferente composición de tráfico (horarios, campaña de marketing, temporada).\nEsto explica tanto la bajada de 10→8 s como el subidón de satisfacción sin invocar el prompt.\n\n**2. Sesgo de selección (ausencia de randomización).**\nLos usuarios del \"nuevo prompt\" no son intercambiables con los del baseline. Si la muestra cambió (clientes nuevos vs. existentes, regiones distintas, usuarios que optaron por algo), cualquier diferencia puede atribuirse a la cohort y no al tratamiento. Sin randomización, los grupos base no son comparables.\n\n**3. Regresión a la media (amenaza adicional).**\nSi el baseline (10 s) se tomó en un momento de rendimiento anómalamente malo por azar, el valor posterior tiende a acercarse a la media sin intervención alguna. La \"mejora\" puede ser estadística, no causal.\n\n**4. Sesgo de instrumentación en la medición.**\nEl umbral de \"usuario satisfecho\" o el método de medición del tiempo pudo cambiar entre mediciones (pregunta distinta, ventana de tiempo distinta, autoinforme vs. log real), inflando la diferencia observada.\n\n---\n\n## Experimento A/B propuesto\n\n**Diseño:** ensayo controlado randomizado por sesión (o por usuario, según granularidad).\n\n1. **Asignación aleatoria:** dividir el tráfico en dos brazos en proporción 50/50:\n   - **Control (C):** prompt antiguo.\n   - **Tratamiento (T):** prompt nuevo.\n   La randomización iguala confusores conocidos y desconocidos entre brazos y fana el sesgo de selección.\n\n2. **Control de infraestructura:** ambos brazos se sirven de **los mismos servidores y mismo código de backend** (solo varía el prompt). Esto aísla el efecto del prompt de mejoras de infraestructura.\n\n3. **Tamaño de muestra (cálculo de potencia):** fijar efecto mínimo de interés (p. ej. Δt = 1 s, Δsatisfacción = 3 pp), potencia 0.8, α = 0.05, y calcular N necesario antes dearrancar. Evita falsos negativos.\n\n4. **Métricas:**\n   - **Primaria:** tiempo medio de respuesta (de logs reales, no autoinforme).\n   - **Secundaria:** % usuarios satisfechos con escala fija y predefinida.\n\n5. **Duración:** correr **≥ 2 semanas** para cubrir variabilidad semanal/fin de semana y neutralizar efectos temporales y regresión a la media.\n\n6. **Prevención de contaminación:** fijar la asignación a nivel de sesión con hashing estable; evitar que un usuario vea ambos prompts.\n\n7. **Anális estadístico:** comparar brazos con prueba de diferencias (t / Mann-Whitney según distribución) e **intervalos de confianza al 95%**. La mejora se atribuye al prompt **solo si** el IC excluye el cero y ambas métricas mejoran simultáneamente. Como complemento, **diferencias-en-diferencias** frente al pre-experimento robustece frente a tendencias externas.\n\n**Condiciones para afirmar causalidad:** IC del Δt y del Δsatisfacción por debajo del umbral de cero + muestra suficiente + control de infraestructura + duración ≥ 2 semanas.\n\nEJECUCIÓN COMPLETA",
+    "segundos": 31.85,
+    "prompt_tokens": 491,
+    "completion_tokens": 1391,
+    "thinking_tokens": 0,
+    "total_tokens": 1882
+  },
+  "total_segundos": 279.39,
+  "configuration": "default"
+}

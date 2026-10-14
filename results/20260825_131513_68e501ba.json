@@ -1,0 +1,50 @@
+{
+  "task": "20260825_131513_68e501ba",
+  "objetivo": "Corrige esta consulta vulnerable a SQL injection: query = \"SELECT * FROM users WHERE email = '\" + email + \"'\". Muestra una versión con parámetros y explica por qué concatenar la entrada es peligroso. No propongas una lista negra de caracteres como solución.",
+  "mode": "solo",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 13:18:52",
+  "user_message": "[user]\nCorrige esta consulta vulnerable a SQL injection: query = \"SELECT * FROM users WHERE email = '\" + email + \"'\". Muestra una versión con parámetros y explica por qué concatenar la entrada es peligroso. No propongas una lista negra de caracteres como solución.",
+  "sabios": {
+    "sabi0": {
+      "texto": "**VEREDICTO:** APOYO. Es una tarea legítima de hardening de seguridad.\n\n**Argumentos técnicos:**\n\n1) **Por qué falla la concatenación:** `email` es dato no de confianza (uncontrolado). Un atacante controla el valor literal, no la sintaxis de la consulta. Con entrada `admin' OR '1'='1`, la query se convierte en `SELECT * FROM users WHERE email = 'admin' OR '1'='1'`, que evalúa a TRUE y devuelve todos los registros. La inyección explota que el parser de SQL distingue *sintaxis* de *valores* y la concatenación destruye ese aislamiento.\n\n2) **Solución correcta — prepared statements:** El parámetro se envía como valor binario, no como texto de sintaxis. El motor compila el plan con los `?`/`:email` y sustituye bytes literalmente, sin reparsear el contenido.\n\n```python\n# Vulnerable\ncur.execute(\"SELECT * FROM users WHERE email = '\" + email + \"'\")\n\n# Seguro\ncur.execute(\"SELECT * FROM users WHERE email = ?\", (email,))\n```\n\nTambién valida `stmt.prepare()` antes de `execute()` para separar fase de compilación de fase de datos.\n\n3) **Defensa en profundidad — nunca confíes solo en esto:** Preparar parámetros previene la inyección pero **no** te protege de errores de tipo, NPE, o inyecciones LPI/LTE. Con `email = null`, el motor inyecta `WHERE email = null` (siempre falso). Se requiere `email IS ?` con `(null,)` para cubrirlo.\n\n**LA CONDICIÓN:** APOYO queda firme siempre que `email` **nunca** entre en el plano de la sintaxis (es dato, no filtro). No soporto mezclar `WHERE` dinámico —por columnas o operadores— con parámetros: ahí ya no hay separación sintaxis/datos y es inyectable de nuevo salvo uso de `CASE` o columnas estáticas.",
+      "segundos": 69.37,
+      "tokens_gen": 630,
+      "tokens_prompt": 270,
+      "thinking_tokens": 0
+    },
+    "sabi3": {
+      "texto": "1) VEREDICTO: RESERVAS\n\n2) 3 fallos lógicos o premisas rotas:\n- El sabio que sugiere \"solo cambia a prepared statements\" comete **falacia de solución única**: ignora que la vulnerabilidad real está en confiar en que el usuario nunca usará el sistema como herramienta de ataque.\n- Asumir que el problema es puramente sintáctico (**falacia de simplificación excesiva**): concatenar strings es solo la punta del iceberg; ¿qué pasa con consultas dinámicas, ORM mal configurado, o inyecciones mediante metadatos?\n- Supone que parámetros = inmunidad, pero el desarrollo puede ser inconsistente (**causalidad circular falsa**): si usas parámetros aquí pero concatenas en otro módulo por \"necesidad de rendimiento\", la seguridad se vuelve caprichosa.\n\n3) LA PREGUNTA QUE NADIE HACE:\n\"Si toda la seguridad depende de que los desarrolladores sepan usar parámetros correctamente, ¿no estamos volviendo el fallo humano al centro de un sistema diseñado para ser seguro por defecto?\"",
+      "segundos": 92.54,
+      "tokens_gen": 807,
+      "tokens_prompt": 446,
+      "thinking_tokens": 0
+    },
+    "sabi2": {
+      "texto": "1) **VEREDICTO: APOYO** (con RESERVAS sobre dónde parar). La consulta parametrizada es la respuesta correcta y no hay debate. Pero detente en arquitectura, no en la línea de código.\n\n2) **LA IDEA LATERAL:** No *corrige* la consulta, **elimina la posibilidad de construirla a mano**. Sustituye cualquier拼接 de cadenas por una capa de acceso (repositorio/ORM) donde la consulta es una *constante* y los datos solo entran por parámetros ligados. En la práctica:\n\n```java\n// antes: SQL como string + datos pegados\n\"SELECT * FROM users WHERE email = '\" + email + \"'\"\n\n// después: consulta fija, datos vía parámetros\nString SQL = \"SELECT * FROM users WHERE email = ?\";\nps = conn.prepareStatement(SQL);\nps.setString(1, email);\n```\n\nAún más radical: haz que los repositorios sean tipados y *compiletes* las queries (ej. `@SQLQuery`), así nadie podrá escribir un `SELECT` con `+` de nuevo. El bug deja de ser un parche y se convierte en una imposibilidad física del código.\n\n3) **POR QUÉ:** resuelve el problema **real**, no el puntual — cualquier string que mezcle SQL y datos es un agujero hoy y mañana, no solo este `email`. El coste es una refactorización: migrar de *strings literales* a *repositorios tipados*. Es un cambio de mentalidad (la base de datos deja de ser una cadena) frente a un parche de parches.",
+      "segundos": 115.76,
+      "tokens_gen": 1357,
+      "tokens_prompt": 280,
+      "thinking_tokens": 0
+    },
+    "sabi1": {
+      "texto": "1) VEREDICTO: APOYO. La solución técnica debe ser `SELECT * FROM users WHERE email = ?`. Concatenar delega la estructura de la base de datos a la entrada, invirtiendo la jerarquía de seguridad.\n\n2) 3 riesgos:\n- Oculto: Un escape de comillas no validado permite inyectar comandos de sistema (OS Command Injection), no solo consultas.\n- Ético: La seguridad basada en la buena fe del usuario o atacante es negligencia política; dejar la integridad de los datos en manos de terceros es colusión.\n- Largo Plazo: La confianza institucional se erosiona irremediablemente tras un solo filtrado; la reputación vale más que cualquier ahorro de desarrollo inicial.\n\n3) LA CONDICIÓN:\nSolo aceptable si la arquitectura prioriza la privacidad y la robustez sobre la velocidad de despliegue. Si el dato es recuperable y no sensible, el riesgo se minimiza; si no, es inaceptable.",
+      "segundos": 191.42,
+      "tokens_gen": 3411,
+      "tokens_prompt": 296,
+      "thinking_tokens": 0
+    }
+  },
+  "respuesta_directa": {
+    "texto": "## 1. Versión vulnerable (recordatorio)\n\n```python\nquery = \"SELECT * FROM users WHERE email = '\" + email + \"'\"\ncur.execute(query)\n```\n\nEl problema es que `email` se **interpola directamente en la cadena SQL**. El servidor no puede distinguir entre dato y estructura: cualquier valor que contenga comillas o sintaxis SQL se convierte en código ejecutable.\n\n## 2. Versión corregida con parámetros (Python / DB-API)\n\n```python\n# sqlite3, psycopg2, mysql-connector, etc. usan el mismo patrón.\ncur.execute(\n    \"SELECT * FROM users WHERE email = %s\",   # marca de posición (paramstyle varianta)\n    (email,)                                   # valor enviado SEPARADO\n)\n```\n\nCon marcadores nombrados (más legible y reutilizable):\n\n```python\ncur.execute(\n    \"SELECT * FROM users WHERE email = :email\",\n    {\"email\": email}\n)\n```\n\nEjemplo idiomático con `sqlite3` (paramstyle `qmark`):\n\n```python\ncur.execute(\"SELECT * FROM users WHERE email = ?\", (email,))\nuser = cur.fetchone()\n```\n\nLa clave: **el string SQL y el valor viajan por canales distintos**. El driver envía la consulta y los parámetros en mensajes separados; el servidor reserva un \"hueco\" tipado y rellena el dato como valor literal, nunca como parte de la sentencia.\n\n## 3. Por qué concatenar es peligroso\n\nCon `email = \"admin'--\"`, la consulta resultante es:\n\n```sql\nSELECT * FROM users WHERE email = 'admin'--'\n```\n\nLos `--` comentan el resto; la consulta devuelve al `admin` sin contraseña. Otros vectores típicos:\n\n- **Unión de booleanos:** `email = \"' OR '1'='1\"` → `... WHERE email = '' OR '1'='1'` devuelve **todas** las filas.\n- **Inyección booleana / tiempo:** `' AND (SELECT ...) = 1`, útil para extraer datos fila a fila.\n- **UNION-based:** `' UNION SELECT password FROM credentials--`.\n\nEn todos los casos el atacante **cierra el literal con su propia comilla** y aporta sintaxis nueva. La concatenación asume que la entrada es solo texto; la inyección asume que la entrada es código.\n\n## 4. Por qué NO vale una lista negra\n\nProponer bloquear `'`, `--`, `;` etc. es un enfoque por defecto incompleto:\n\n- **Evasión trivial:** codificaciones (hex, UTF-7), caracteres no escapados por la lista, comillas de otros idiomas (`‘’`), o contextos donde el literal no está entre comillas (números, `ORDER BY 1`).\n- **Mantenimiento frágil:** cada nuevo driver, collation o base de datos puede traer un vector nuevo; la lista siempre va a la zaga.\n- **Falsa seguridad:** \"no veo el carácter\" ≠ \"no es inyección\".\n\nLa defensa correcta no **filtra entrada**, sino que **separa código de datos**: los parámetros tipados garantizan que el dato nunca se reinterpreté como SQL, sin importar su contenido.\n\n## 5. Refuerzos recomendados\n\n- Combinar con **parámetros de consulta** siempre, incluso en filtros numéricos.\n- **Principio de mínimo privilegio** para la cuenta de la base de datos.\n- Validar formato (p. ej. regex de email) como defensa en profundidad, **no** como mecanismo antí-inyección único.\n- Escapar salidas HTML contra XSS por separado (no confuntes ambos problemas).\n\nEJECUCIÓN COMPLETA",
+    "segundos": 27.97,
+    "prompt_tokens": 466,
+    "completion_tokens": 1253,
+    "thinking_tokens": 0,
+    "total_tokens": 1719
+  },
+  "total_segundos": 219.39,
+  "configuration": "default"
+}

@@ -1,0 +1,50 @@
+{
+  "task": "20260825_181627_b5f5f835",
+  "objetivo": "Una tienda aplica primero un descuento del 20% y después un cupón adicional del 10% sobre el precio ya rebajado. Si el precio original es 250 euros, ¿cuál es el precio final y qué descuento equivalente único se ha aplicado? Explica el cálculo brevemente.",
+  "mode": "solo",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 18:21:56",
+  "user_message": "[user]\nUna tienda aplica primero un descuento del 20% y después un cupón adicional del 10% sobre el precio ya rebajado. Si el precio original es 250 euros, ¿cuál es el precio final y qué descuento equivalente único se ha aplicado? Explica el cálculo brevemente.",
+  "sabios": {
+    "sabi3": {
+      "texto": "ERROR: Remote end closed connection without response",
+      "segundos": 0,
+      "tokens_gen": 0,
+      "tokens_prompt": 0,
+      "thinking_tokens": 0
+    },
+    "sabi0": {
+      "texto": "**1) VEREDICTO: APOYO** (problema de cálculo; cifra correcta y verificable)\n\n**2) Argumentos técnicos:**\n\n- **Cálculo por pasos:** 250 × (1 − 0.20) × (1 − 0.10) = 250 × 0.80 × 0.90 = **180 €**.\n- **No es la suma de porcentajes:** 20% + 10% = 30% **sería incorrecto**. Los descuentos compuestos se multiplican sobre el precio residual, no sobre el precio original.\n- **Descuento equivalente único:** 1 − (0.80 × 0.90) = 1 − 0.72 = **28%**. El factor global es 0.72 (se comprueba: 250 × 0.72 = 180).\n\n**Respuesta final:** precio = **180 €**, descuento equivalente = **28%**.\n\n**3) LA CONDICIÓN:** si la tienda aplicara el 10% **sobre el precio original** (no sobre el rebajado) en vez de «sobre el precio ya rebajado», el descuento equivalente cambiaría a **30%**. La frase del problema (preposición «sobre») es la variable única que valida la composición multiplicable.",
+      "segundos": 241.0,
+      "tokens_gen": 550,
+      "tokens_prompt": 385,
+      "thinking_tokens": 0
+    },
+    "sabi2": {
+      "texto": "**RESPUESTA AL CÁLCULO:**\n- Descuento 20%: 250 × 0.80 = 200€\n- Cupón 10% sobre el rebajado: 200 × 0.90 = **180€** (precio final)\n- Descuento equivalente: (250 − 180) / 250 = 70/250 = **28% total**\n\nEl error clásico sería sumar 20% + 10% = 30%, pero los descuentos se multiplican, no se suman (0.80 × 0.90 = 0.72, es decir, se paga el 72%).\n\n---\n\n**1) VEREDICTO: APOYO**\nLa matemática es correcta y la pregunta es clara. Además, tu instinto sobre la confusión del \"20%+10%\" es exactamente donde vive el valor.\n\n**2) LA IDEA LATERAL:**\nPasa de mostrar \"−20% y −10%\" (que engaña al cerebro hacia \"−30%\") a mostrar el descuento único equivalente **28%** destacado en la etiqueta. Al revés del orden habitual: en vez de \"aplica primero esto y luego esto\", marca \"has ahorrado 28%\". El cliente percibe un ahorro honesto y redondo, y la tienda elimina reclamos por \"no decía que era más\" y por confusión.\n\n**3) POR QUÉ:**\nEl problema real es la **sobrecarga cognitiva y la percepción de injusticia** (dos etiquetas de descuento vs. un 28% real). Coste: mínimo (rediseño del ticket y una línea en la UI). Validación: medir percepción de valor y reclamaciones en una prueba A/B. Si falla, alternativa: mantener los dos descuentos pero añadir siempre un pequeño subtítulo \"(equivalente a 28%)\".",
+      "segundos": 284.84,
+      "tokens_gen": 837,
+      "tokens_prompt": 363,
+      "thinking_tokens": 0
+    },
+    "sabi1": {
+      "texto": "1) VEREDICTO: APOYO\nCálculo: 250 → 200 (20% off) → 180 (10% off). Final: 180€. Descuento equivalente único: 28% exacto.\n\n2) 3 riesgos:\n- **Oculto:** El consumidor percibe \"mejor oferta\" sin entender la matemática compuesta, desvalorizando los precios brutos futuros.\n- **Ético:** La superposición de descuentos se califica como \"doble manipulación\" psicológica para incentivar gasto supérfluo.\n- **Largo plazo:** Si el cliente depende de esta estrategia dual, la fidelidad se basa en la liquidez de cupones, no en el valor de la marca.\n\n3) LA CONDICIÓN:\nLa tienda debe comunicar explícitamente el 28% total en la interfaz, no solo las dos capas. Esto valida la estrategia comercial frente a la ética transparente y evita sesgos perceptivos.",
+      "segundos": 308.32,
+      "tokens_gen": 1451,
+      "tokens_prompt": 432,
+      "thinking_tokens": 0
+    }
+  },
+  "respuesta_directa": {
+    "texto": "## EJECUCIÓN\n\n**Paso 1 — Definición de datos**\n- Precio original: P₀ = 250 €\n- Primer descuento: d₁ = 20% → factor (1 − d₁) = 0.80\n- Segundo descuento (sobre precio rebajado): d₂ = 10% → factor (1 − d₂) = 0.90\n\n**Paso 2 — Aplicación secuencial de descuentos**\n\nPrimer descuento (20% sobre 250 €):\n- Ahorro₁ = 250 × 0.20 = 50 €\n- Precio tras descuento₁ = 250 × 0.80 = **200 €**\n\nSegundo descuento (10% sobre los 200 € ya rebajados):\n- Ahorro₂ = 200 × 0.10 = 20 €\n- Precio final = 200 × 0.90 = **180 €**\n\n**Paso 3 — Cálculo del precio final**\n\n```\nPrecio final = P₀ × (1 − d₁) × (1 − d₂)\n             = 250 × 0.80 × 0.90\n             = 250 × 0.72\n             = 180 €\n```\n\n**Paso 4 — Descuento equivalente único**\n\n- Ahorro total = P₀ − precio final = 250 − 180 = 70 €\n- Descuento equivalente = Ahorro total / P₀ = 70 / 250 = 0.28 = **28%**\n\nVerificación por factores: (1 − 0.20) × (1 − 0.10) = 0.72 → se paga el 72%, luego el descuento único es 1 − 0.72 = 0.28 = 28%.\n\n> Nota: NO es la suma aritmética 20% + 10% = 30% (error común), porque el 10% se aplica sobre el precio ya rebajado, no sobre el original.\n\n**Respuesta final**\n- **Precio final: 180 €**\n- **Descuento equivalente único: 28%**\n\nEJECUCIÓN COMPLETA",
+    "segundos": 20.32,
+    "prompt_tokens": 597,
+    "completion_tokens": 813,
+    "thinking_tokens": 0,
+    "total_tokens": 1410
+  },
+  "total_segundos": 328.66,
+  "configuration": "default"
+}

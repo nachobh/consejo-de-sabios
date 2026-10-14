@@ -1,0 +1,49 @@
+{
+  "task": "20260825_185708_b28b924f",
+  "objetivo": "Redacta un plan de 4 pasos para migrar una API sin tiempo de inactividad. Debe incluir compatibilidad hacia atrás, migración gradual, observabilidad y rollback. Sé concreto y numera los pasos.",
+  "mode": "sabios",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 19:00:34",
+  "user_message": "[user]\nRedacta un plan de 4 pasos para migrar una API sin tiempo de inactividad. Debe incluir compatibilidad hacia atrás, migración gradual, observabilidad y rollback. Sé concreto y numera los pasos.",
+  "sabios": {
+    "sabi3": {
+      "texto": "ERROR: <urlopen error [Errno 111] Connection refused>",
+      "segundos": 0,
+      "tokens_gen": 0,
+      "tokens_prompt": 0,
+      "thinking_tokens": 0
+    },
+    "sabi0": {
+      "texto": "**1) VEREDICTO: APOYO** (con las reservas 2 y 3, no como \"seguro\")\n\n**2) Plan de 4 pasos:**\n\n1. **Contrato bin兼容 + versión paralela.** Despliega la nueva API bajo el mismo path con versionado en URL (`/v1`→`/v2`) y/o header (`Accept: application/vnd.app.v2+json`). La v1 sigue sirviendo desde el mismo host; la v2 se valida en staging con datos reales hasta ser *behaviorally identical* en diffs de 5.000 peticiones.\n\n2. **Ruteo gradual (canary).** Canaliza el tráfico por peso: 5% → 25% → 50% → 100% vía reverse proxy (nginx/Envoy), NO por redirección DNS o subdominio. La v1 queda como fallback activo durante toda la ventana.\n\n3. **Observabilidad cruzada.** Métricas unificadas: ratio de código 4xx/5xx, latencia p95, traces entre v1/v2, y trazabilidad por request-id en ambos endpoints. Alarma en *any* salto de error-rate > base + 1σ.\n\n4. **Rollback instantáneo.** El proxy apunta al upstream mediante una variable de entorno (`API_VERSION`). Cambiarla y redeployar trae el tráfico a v1 en ~1 clic. Se requiere que v1 sea *fully deployable* y no dependa del despliegue de v2.\n\n**3) Argumentos:**\n- La compatibilidad hacia atrás exige **inmutabilidad del contrato**: si cambias schema/códigos HTTP, los clientes heredados fallan sin aviso. Valida con **contratos contract-tests** ( Pact) antes de cada release.\n- El *zero-downtime* real no es lo mismo que \"sin brecha DNS\". Cualquier cambio de host/TTL introduce hasta 60 s de latencia.\n- El rollback depende de que **v1 y v2 no compartan código mutable en vivo**: si v2 \"consolida\" cambios, el revert es irreversible.\n\n**LA CONDICIÓN:** cambio mi veredicto a RECHAZO si la migración implica modificar el esquema de payloads de forma *breaking* o si v1 depende del despliegue de v2. Exige un dataset de validación de contratos y un DNS con TTL bajo.",
+      "segundos": 43.32,
+      "tokens_gen": 668,
+      "tokens_prompt": 366,
+      "thinking_tokens": 0
+    },
+    "sabi2": {
+      "texto": "**PLAN DE MIGRACIÓN (4 pasos):**\n\n1. **Versiónado lateral:** despliega v1 y v2 coexistiendo, diferenciados por la URL (`/api/v1`, `/api/v2`); traffic 100% en v1.\n2. **Migración gradual:** percentage gate por cliente (`1% → 10% → 50% → 100%`), controlado con feature flag.\n3. **Observabilidad:** métricas de latencia, error-rate y %adopción **por versión**; alertas configuradas en cada tramo, no solo al final.\n4. **Rollback:** revertir el gate a v1 es un cambio de flag en un click; v1 sigue vivo todo el camino, así que no hay punto de no retorno.\n\n---\n\n**VEREDICTO:** APOYO (con un giro)\n\n**LA IDEA LATERAL:** Hazlo al revés. En vez de empujar a los clientes hacia v2, converte la **v1 en un adaptador/bridge siempre encendido en el borde** que traduce cada llamada al backend nuevo (v2). Tú actualizas infra, lógica y data libremente; el cliente ni nota que cambió el contrato. El \"no downtime\" nace de que v1 se queda como wrapper hasta que v2 está perfecto.\n\n**POR QUÉ:** resuelve el verdadero dolor —\"¿cómo actualizo sin que nadie cambie su código?\"— y elimina el riesgo de romper un % de clientes en la迁移. Coste/riesgo principal: la lógica de traducción en el bridge se vuelve su propia deuda técnica y puede enmascarar bugs por semanas. Si falla, cae a la migración gradual clásica (tu plan base) —y de hecho eso es tu alternativa de respaldo dentro de la misma arquitectura.",
+      "segundos": 123.21,
+      "tokens_gen": 1912,
+      "tokens_prompt": 344,
+      "thinking_tokens": 0
+    },
+    "sabi1": {
+      "texto": "1. Headers de versionado inmutables (v1/v2).\n2. Blue-green deployment con load balancer (peso cero inicial).\n3. Canary traffic basado en métricas de error/latencia en tiempo real.\n4. Endpoint legacy persistente con flag global de desconexión.\n\nVEREDICTO: RESERVAS. La complejidad operativa es tu verdadera fragilidad, no la migración.\n\nRIESGOS:\n1) Oculto: Monopolio de la observabilidad; si las métricas mienten, el caos es silencioso.\n2) Ético: Priorizar disponibilidad sobre integridad de datos en caso de rollback fallido.\n3) Largo plazo: Acumulación de deuda técnica por mantener endpoints muertos en producción indefinidamente.\n\nLA CONDICIÓN: Aceptable solo con auditoría de rollback externa y ventanas de limpieza forzosa cada seis meses.",
+      "segundos": 157.43,
+      "tokens_gen": 2682,
+      "tokens_prompt": 413,
+      "thinking_tokens": 0
+    }
+  },
+  "plan": {
+    "texto": "**PLAN — Migración de API sin downtime (4 pasos)**\n\n**1) Compatibilidad hacia atrás — contrato inmutable + versión paralela.**\nDespliega v2 en el mismo host con versionado por URL (`/api/v1`, `/api/v2`) y header (`Accept: application/vnd.app.v2+json`). v1 y v2 no comparten código mutable en vivo. Antes de cada release ejecuta **contract-tests (Pact)** sobre un dataset de 5.000 peticiones para garantizar comportamiento idéntico. *(Con SABI0: valida el contrato explícitamente; el versionado solo no basta.)*\n\n**2) Migración gradual — canary",
+    "segundos": 48.21,
+    "tokens_gen": 2048,
+    "tokens_prompt": 1748,
+    "thinking_tokens": 0
+  },
+  "total_segundos": 205.63,
+  "configuration": "default"
+}

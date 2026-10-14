@@ -1,0 +1,49 @@
+{
+  "task": "20260825_205511_ea6f3e46",
+  "objetivo": "Corrige esta consulta vulnerable a SQL injection: query = \"SELECT * FROM users WHERE email = '\" + email + \"'\". Muestra una versión con parámetros y explica por qué concatenar la entrada es peligroso. No propongas una lista negra de caracteres como solución.",
+  "mode": "sabios",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 20:58:14",
+  "user_message": "[user]\nCorrige esta consulta vulnerable a SQL injection: query = \"SELECT * FROM users WHERE email = '\" + email + \"'\". Muestra una versión con parámetros y explica por qué concatenar la entrada es peligroso. No propongas una lista negra de caracteres como solución.",
+  "sabios": {
+    "sabi3": {
+      "texto": "ERROR: <urlopen error [Errno 111] Connection refused>",
+      "segundos": 0,
+      "tokens_gen": 0,
+      "tokens_prompt": 0,
+      "thinking_tokens": 0
+    },
+    "sabi0": {
+      "texto": "```js\n// ANTIESQUEMATO: nunca concatenar entrada del usuario en SQL.\n// Node.js + node-postgres (driver oficial). Los parámetros nunca tocan el texto SQL.\n\nconst client = new Pool({ connectionString: process.env.DATABASE_URL });\n\nasync function getUserByEmail(email) {\n  // Los parámetros van en una posición, el SQL es literal e inalterable.\n  const result = await client.query(\n    'SELECT id, email FROM users WHERE email = $1 LIMIT 1',\n    [email]\n  );\n  return result.rows[0] ?? null;\n}\n\n// Uso correcto: la entrada entra ÚNICAMENTE como valor, nunca como texto SQL.\nawait getUserByEmail('admin@example.com');\n\n// ----------------------------------------------------------------\n// ¿Por qué concatenar es peligroso (por qué NO usar listas negras)?\n// ----------------------------------------------------------------\n// 1) ESPACIO DE ATAQUE: cualquier email del atacante se convierte en código.\n//    ' OR '1'='1' colapsa la condición y devuelve TODOS los usuarios.\n// 2) TIEMPO DE EXFILTRACIÓN: sin parámetros, el coste de la inyección es 0 en\n//    ingeniería inversa — no se necesita ninguna skill adicional.\n// 3) FALSOS SENSOS: \"listas negras de caracteres\" fallan al instante. SQL soporta\n//    comillas dobles (') dentro de 'a''a', comentarios (--, #), identidades de\n//    columnas y funciones arbitrarias como pg_sleep(5). Una lista blanca/blanca\n//    para email es trivialmente saltarble (0% de bloqueo real práctico).\n// ----------------------------------------------------------------\n// RESULTADO: un parámetro en una query fija reduce la superficie de SQLi a\n// ~0 exploits legítimos. No es un añadido de seguridad, es el modelo base.\n```\n\n**VEREDICTO: APOYO**\n\n1) `query($1)` aísla el valor del esquema: la cadena SQL nunca se escribe desde datos, así que el parser de Postgres la ve como literal, no como código ejecutable.\n2) La exposición de `email` se pasa como dato (byte literal), no como texto SQL; el coste de explotación baja de 0 a ~0 exploits viables.\n3) Listas negras por email tienen un *false pass* ~100% con técnicas estándar (comentarios, escapes, funciones de PostgreSQL) — por eso el patrón de parámetros es la única defensa real.\n\n**LA CONDICIÓN:** cambia el veredicto solo si el stack no usa prepared statements (usar raw string en MySQL con `%s` sin driver/parámetros), o si existe una vía paralela que vuelva a unificar `email` en la SQL.",
+      "segundos": 73.05,
+      "tokens_gen": 840,
+      "tokens_prompt": 375,
+      "thinking_tokens": 0
+    },
+    "sabi2": {
+      "texto": "1) **VEREDICTO:** APOYO. La solución técnica es correcta y estándar. El reto real es el \"no blacklist\", que es donde hay que pensar fuera de la caja.\n\n2) **LA IDEA LATERAL — Invertir la amenaza:** No defiendo la query como \"insegura a arreglar\". La rediseño como **imposible de escribir mal por construcción**: un *type-safe query builder* donde toda entrada de usuario es un `Param` (objeto tipado), no una cadena. Así el patrón vulnerable `email = \"'\" + email + \"'\"` no es un error, sino código **no compilable / no expresable**. La cadena y el código dejan de ser hermanos; el dato ya no puede volverse consulta.\n\nPrimera ejecución no es un parche, es un cambio de paradigma: atacas la *topología del lenguaje*, no la sintaxis de un input.\n\n3) **POR QUÉ:**\n- **Parámetros** (`ps.setString(1, email)`): el motor recibe el dato como dato, nunca como SQL. `\"SELECT * FROM users WHERE email = ?\"`.\n- **Por qué falla la concatenación:** cada valor se evalúa como código literal; `' OR '1'='1` cierra el string y el atacante gana el control de la sentencia.\n- **Por qué NO blacklist:** combate sintaxis conocida; `' OR 1=1 --` o una nueva inyección evadan una lista de ~50 caracteres. Solo frena ataques ya vistos.\n\n- **Coste/riesgo:** reescribir la capa de acceso a datos y migrar legacy (riesgo de fugas si se usa `setString` en lugar de bind).\n- **Validación:** fuzz con payloads (ej. `\"x' UNION SELECT password FROM users --\"`) contra la API con parámetros; debe dar 0 resultados sin romper la app.\n- **Si falla:** fallback a parámetros JDBC/ORM con bind, descartando por completo la concatenación manual como camino de regreso.",
+      "segundos": 86.25,
+      "tokens_gen": 1251,
+      "tokens_prompt": 353,
+      "thinking_tokens": 0
+    },
+    "sabi1": {
+      "texto": "```python\n# Solución Segura: Prepared Statements\ncursor.execute(\"SELECT * FROM users WHERE email = %s\", (email,))\n```\n\n1) **VEREDICTO:** APOYO (condicionado a validación estricta de tipos y entornos aislados).\n\n2) **3 RIESGOS:**\n- *Oculto:* Fuga lateral mediante metadatos o columnas técnicas; la consulta expone más de lo intencionado si no está aislada.\n- *Ético:* Delegar seguridad a abstracciones sin supervisión erosiona la responsabilidad moral del desarrollador.\n- *Largo Plazo:* Genera cultura de \"parches\" en lugar de arquitectura sólida, fragilizando el sistema ante amenazas emergentes.\n\n3) **LA CONDICIÓN:** Aceptable solo bajo:\n- *Acción:* Monitoreo activo de intentos de inyección y errores de parámetro en logs.\n- *Observación:* Validar salida real de datos en entorno de prueba idéntico al prod.\n- *Cierre:* Problema resuelto solo tras auditoría de seguridad que confirme inyección imposible sin error log.\n\nLa verdadera seguridad no es técnica, es política de control interno sobre el flujo de datos.",
+      "segundos": 141.61,
+      "tokens_gen": 2614,
+      "tokens_prompt": 422,
+      "thinking_tokens": 0
+    }
+  },
+  "plan": {
+    "texto": "FASE A — PLAN.\n\n**Objetivo central:** reescribir la consulta con parámetros (no concatenar), explicar el peligro y evitar lista negra.\n\n**Consejo:** SABI0, SABI1 y SABI2 coinciden en sentencias preparadas como defensa base; la entrada entra solo como dato, no como esquema. SABI3 devolvió ERROR (conn. refused) → ignorado.\n\n**Plan:**\n\n1. **Núcleo: sentencia preparada.** Reemplazar concatenación por un placeholder que el driver *bind* al valor, nunca al SQL.\n   - Python: `cursor.execute(\"SELECT id, email FROM users WHERE email = %s\", (email,))`.\n   - Node (node-postgres): `client.query('SELECT id, email FROM users WHERE email = $1', [email])`.\n   - JDBC: `ps.setString(1, email)` con `\"SELECT ... WHERE email = ?\"`.\n   — Aplica el patrón de SABI0 (Node) y SABI2 (bind JDBC).\n\n2. **Reducir exposición.** Pasar de `SELECT *` a columnas explícitas (`id, email`). SABI1 recuerda que `SELECT *` foga columnas técnicas/metadatos → aplicar siempre.\n\n3. **Peligro de concatenar (sin lista negra):** la entrada se evalúa como código. `' OR '1'='1` ciela comillas y colapsa la condición, devolviendo todos los usuarios; se pueden encadenar comandos y exfiltrar sin ingeniería inversa.\n\n4. **Por qué falla la lista negra:** SQL soporta comentarios (`--`, `#`), escapes de comilla (`''`), funciones arbitrarias (`pg_sleep(5)`) e identidades de columnas → *false pass* ~100%. Los parámetros reducen la superficie a ~0.\n\n5. **Mejora lateral (SABI2):** patrón \"imposible de escribir mal por construcción\" — query builder *type-safe* donde toda entrada es un `Param` tipado; el patrón `+ email +` deja de ser código expresable. Más fuerte que el parche, pero mayor coste (migración legacy).\n\n6. **Validación:** fuzz con payloads (`x' UNION SELECT ... --`) → 0 resultados sin romper app; monitorear errores de parámetro en logs (SABI1).\n\n**Riesgo:** migrar legacy puede reintroduir un bind mal hecho. Orden: par como base (1–4), luego builder type-safe (5) si el coste lo permite.\n\nPLAN LISTO.",
+    "segundos": 41.18,
+    "tokens_gen": 1735,
+    "tokens_prompt": 2194,
+    "thinking_tokens": 0
+  },
+  "total_segundos": 182.79,
+  "configuration": "default"
+}

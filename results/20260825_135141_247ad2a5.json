@@ -1,0 +1,49 @@
+{
+  "task": "20260825_135141_247ad2a5",
+  "objetivo": "Corrige esta consulta vulnerable a SQL injection: query = \"SELECT * FROM users WHERE email = '\" + email + \"'\". Muestra una versión con parámetros y explica por qué concatenar la entrada es peligroso. No propongas una lista negra de caracteres como solución.",
+  "mode": "sabios",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 13:54:44",
+  "user_message": "[user]\nCorrige esta consulta vulnerable a SQL injection: query = \"SELECT * FROM users WHERE email = '\" + email + \"'\". Muestra una versión con parámetros y explica por qué concatenar la entrada es peligroso. No propongas una lista negra de caracteres como solución.",
+  "sabios": {
+    "sabi0": {
+      "texto": "**1) VEREDICTO: APOYO**\n\n**2) Argumentos técnicos**\n\n* **Catena es código, no dato:** `\"'\" + email + \"'\"` envía la entrada al parser SQL. Con `email = x'OR '1'='1` la query se convierte en `... WHERE email = ('' OR '1'='1')` → filtra 0 condiciones y devuelve todo el `users`. El atacante controla el AST, no el valor.\n\n* **Parámetros aislan el dato:** `cursor.execute(\"SELECT * FROM users WHERE email = %s\", (email,))` envía el valor por un canal binario separado del texto SQL. El motor lo escapa/liga literalmente sin nunca pasarlo por el lexer. El buffer de la query es de tamaño fijo por declaración; los parámetros se pasan aparte, por eso una cadena con comillas/`%` no rompe nada.\n\n* **Coste de la lista blanca:** rechazar caracteres → rechazar `ü`, `@`, `.` o el email real `+alias@`. Te cierra funcionalidad de negocio. No la planteas: te añades trabajo de verificación (RASP/allowlist de `@dominio`) que mueve el problema, no lo elimina.\n\n**3) LA CONDICIÓN**\n\nCambiaría a **RECHAZO** si tu objetivo real es **detectar/auditar** inyecciones existentes (no prevenir): ahí la concatenación deliberada + logging es válida para pruebas, pero fuera de producción y con capa WAF en `users` como defensa en profundidad.",
+      "segundos": 35.07,
+      "tokens_gen": 362,
+      "tokens_prompt": 270,
+      "thinking_tokens": 0
+    },
+    "sabi2": {
+      "texto": "1) VEREDICTO: APOYO\n\n2) LA IDEA LATERAL: En vez de enseñar la corrección canónica (\"¿por qué concatenar es malo?\"), enséñala al revés: haz que el equipo **verifique por ataques, no por reglas**. En lugar de explicar el peligro de la concatenación, implementa un **test de inyección automático** en CI que inyecta payloads clásicos (`' OR '1'='1`, `'; DROP TABLE`, `<script>`) contra la capa de acceso a datos. Si la app falla, la build roza. El patrón de parámetros preparado es la corrección obligatoria que aparece como *consecuencia* de la red de seguridad, no como lección aislada.\n\n3) POR QUÉ: El problema real es que las correcciones de seguridad se olvidan: nadie recuerda el patrón correcto, solo recuerda el payload de prueba. Con el ataque automatizado, la aplicación misma se convierte en su propio escáner de regresión. **Coste:** inicial en CI y mocking del DAO, pero se paga solo: elimina la deuda continua de XSS/SQLi y detecta el error antes de producción. La concurrencia forzada entre \"¿qué inyecta la app?\" y \"¿cómo lo hace con parámetros?\" hace que la buena práctica se vuelva muscular, no documental.\n\n*Nota lateral: el usuario prohibe listas negras (correcto: es la peor solución, se evapora frente a nuevos ataques). El enfoque de prueba supera hasta a la concurrencia por parámetros, que aunque correcta es una medida de defensa pasiva.*",
+      "segundos": 40.14,
+      "tokens_gen": 444,
+      "tokens_prompt": 280,
+      "thinking_tokens": 0
+    },
+    "sabi1": {
+      "texto": "1) VEREDICTO: APOYO estratégico inmediato.\n\n2) Riesgos:\n* Oculto: Un ataque SQL inyecta acceso lateral a la infraestructura; concatenar input es abrir rejas al invasor sin vigilancia.\n* Ético: Conectar crudo a base de datos es negligencia. Se vende seguridad prometedora sobre verificación técnica real.\n* Largo plazo: Fomenta el \"developer confidence\" sobre arquitectura defensiva; la deuda técnica de seguridad crece hasta el colapso silencioso.\n\n3) LA CONDICIÓN: Solo viable bajo arquitectura Zero Trust. Requiere SAST integrado al pipeline y auditoría de consultas en ejecución. Si no hay observabilidad total, la seguridad es solo ilusión.\n\n```python\n# Parámetros, no cadenas: el driver aísla la intención del valor\ncursor.execute(\"SELECT * FROM users WHERE email = %s\", (email,))\n```",
+      "segundos": 147.98,
+      "tokens_gen": 1995,
+      "tokens_prompt": 296,
+      "thinking_tokens": 0
+    },
+    "sabi3": {
+      "texto": "1) VEREDICTO: RESERVAS.\n\n2) FALLOS:\n1) [Supuesto de inmutabilidad]: Asumen que `email` entra limpio; la vulnerabilidad real suele estar en la validación antes de llegar al motor SQL, no en el string en sí.\n2) [Falsa seguridad]: Los parámetros escapan la sintaxis, pero si la aplicación lógica no valida el resultado (filas afectadas, errores de ejecución), el riesgo de suplantación de identidad persiste.\n3) [Causalidad circular]: Dicen que concatenar es el peligro; la realidad es dejar que datos externos dicten la estructura de una consulta sin definir un contexto estricto.\n\n3) LA PREGUNTA: Si la consulta es técnicamente inocua, ¿qué impide que el mismo atacante acceda a la base de datos desde fuera de la aplicación web?",
+      "segundos": 152.06,
+      "tokens_gen": 2119,
+      "tokens_prompt": 446,
+      "thinking_tokens": 0
+    }
+  },
+  "plan": {
+    "texto": "## PLAN\n\n**Objetivo:** Corregir inyección SQL, mostrar parámetros, explicar peligro de concatenar, sin lista negra.\n\n**Paso 1 — Reproducir el ataque.** Mostrar que con `email = ' OR '1'='1` la consulta se transforma en `... WHERE email = ('' OR '1'='1')`, devolviendo toda la tabla. Cubre el riesgo de **SABI3** de asumir `email` limpio: demostramos que entra crudo.\n\n**Paso 2 — Explicar el peligro real.** Concatenar envía la entrada al *lexer/parser*: el atacante controla el **AST**, no solo el valor. El string deja de ser dato para convertirse en código ejecutable. Cubre **SABI0**.\n\n**Paso 3 — Corrección canónica con parámetros.**\n```python\nquery = \"SELECT * FROM users WHERE email = %s\"\ncursor.execute(query, (email,))\n```\nEnvía el SQL y el valor por **canales separados**. Cubre **SABI1**.\n\n**Paso 4 — Mecanismo de aislamiento.** El driver envía el valor por un buffer binario aparte; el motor lo **liga literalmente** sin pasarlo por el lexer. Comillas, `%` o `'` no rompen nada porque nunca se reinterpretan. Cubre **SABI0**.\n\n**Paso 5 — Por qué no usar lista negra.** Rechazar `@`, `.` o `ü` cierra funcionalidad real (`alias+tag@dominio`). Es la peor solución y se evapora ante nuevos ataques — el usuario ya lo prohíbe. Cubre **SABI0** y **SABI2** (nota lateral).\n\n**Paso 6 — Cerrar la \"falsa seguridad\" de SABI3.** Validar filas afectadas y loguear errores de ejecución; sin contexto estricto los parámetros no garantizan integridad de negocio. Una línea al final.\n\n**Paso 7 — Refuerzo lateral (opcional).** Test de inyección automático en CI con payloads clásicos que invalida el build si el DAO no aísla el dato. Cubre **SABI2**.\n\n**Riesgo global evitado:** exposición lateral a infraestructura y deuda técnica de seguridad (advertencia de **SABI1**).\n\nPLAN LISTO",
+    "segundos": 31.34,
+    "tokens_gen": 1127,
+    "tokens_prompt": 1584,
+    "thinking_tokens": 0
+  },
+  "total_segundos": 183.41,
+  "configuration": "default"
+}

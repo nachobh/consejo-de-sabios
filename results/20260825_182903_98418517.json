@@ -1,0 +1,50 @@
+{
+  "task": "20260825_182903_98418517",
+  "objetivo": "Redacta un plan de 4 pasos para migrar una API sin tiempo de inactividad. Debe incluir compatibilidad hacia atrás, migración gradual, observabilidad y rollback. Sé concreto y numera los pasos.",
+  "mode": "solo",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 18:32:27",
+  "user_message": "[user]\nRedacta un plan de 4 pasos para migrar una API sin tiempo de inactividad. Debe incluir compatibilidad hacia atrás, migración gradual, observabilidad y rollback. Sé concreto y numera los pasos.",
+  "sabios": {
+    "sabi3": {
+      "texto": "ERROR: <urlopen error [Errno 111] Connection refused>",
+      "segundos": 0,
+      "tokens_gen": 0,
+      "tokens_prompt": 0,
+      "thinking_tokens": 0
+    },
+    "sabi0": {
+      "texto": "**PLAN DE MIGRACIÓN (4 pasos)**\n\n1. **Compatibilidad hacia atrás:** despliega `/v2` con contratos binarios/DTOs idénticos a `/v1` (versioning por header + `Content-Type`). Nuevos servicios consumen `/v2`; el legacy sigue en `/v1` sin tocar su contrato.\n2. **Migración gradual (canary):** routing ponderado **1% → 10% → 50% → 100%** en el load balancer/ingreso (weighted routing).\n3. **Observabilidad:** p99 de latencia, error-rate **por versión** y saturación de cola; alertas de SLO en **< 5 min** (Grafana + logs centralizados).\n4. **Rollback:** fallback automático si **error-rate > 1%** o latencia > 2× baseline; revertida la proporción de tráfico (operación atómica del canary).\n\n---\n\n**1) VEREDICTO: RESERVAS**\n\n**2) Argumentos técnicos:**\n- **Canary y la media oculta el tail:** mantener el 99% en `/v1` enmascara defectos de cola; la señal real (p99/error-rate en `/v2`) se evalúa sobre cientos de requests, no sobre millones. El escalonaje por % puede promocionar un bug antes de que haya daños.\n- **Dual-write / doble escritura:** si implementas writes concurrentes a ambas fuentes, duplicas el volumen de escrituras y generas divergencia de estado. Sin transacción distribuida atómica, terminas con datos en dos fuentes inconsistentes.\n- **Rollback ≠ trivial:** revertir el canary dura segundos, pero un flip completo a `/v2` colapsa si la DB nueva **no migró índices/views/particiones** antes del corte. Coste oculto: ventana de doble escritura + coherencia eventual.\n\n**3) LA CONDICIÓN:** cambio a APOYO si me das: topología real (API gateway + RDS vs service discovery), SLA real de downtime (¿0 vs <0.1s?), RPO de la BD y esquema de versionado de DTOs. Sin eso, es un patrón genérico, no una decisión validada.",
+      "segundos": 96.97,
+      "tokens_gen": 1392,
+      "tokens_prompt": 366,
+      "thinking_tokens": 0
+    },
+    "sabi2": {
+      "texto": "1) **VEREDICTO:** APOYO (con matiz) — El plan de 4 pasos es sólido y no lo mato. Te lo doy limpio para que sirva ya.\n\n**Plan de 4 pasos (utilizable):**\n1. **Capa de compatibilidad:** Rutea a un gateway/cap (o el nuevo backend) que *acepte* el formato legado sin reescribir contratos; la API vieja sigue respondiendo a 100%.\n2. **Migración gradual:** Rutea por %, por tipo de cliente o por segmento de bajo riesgo, monitorizando en cada tramo.\n3. **Observabilidad:** SLOs de latencia/error por versión, trazabilidad (traces) por request y paneles A/B viejo vs. nuevo.\n4. **Rollback:** Un *feature flag* único que redirige todo al legacy en <1 min; haz pruebas de failover cada sprint.\n\n**2) LA IDEA LATERAL:** **Traffico espejo real (double-sourcing).** No canarias por %, haz que el **100% del tráfico real entre por la API LEGADA** pero se refleje (mira) en el nuevo backend. El cliente ve el código viejo; el nuevo se valida con datos reales, sin ningún cambio visible. Invertimos la regla: el legacy es puerta de entrada y la capa nueva es la que se entrena, no la que se sirve.\n\n**3) POR QUÉ:** Resuelve el riesgo oculto: *¿se cae tu nuevo backend solo ante tráfico real?* Con espejo lo descubres antes de servirle. Coste: **duplicas procesamiento** (CPU/memoria) y latencia; riesgo de saturación. Valida el espejo en staging 3 días, luego una ventana de prod. Si hay saturación, cae al canario por % tradicional y el espejo se quita en <10s (el mismo flag de rollback).",
+      "segundos": 117.81,
+      "tokens_gen": 1587,
+      "tokens_prompt": 344,
+      "thinking_tokens": 0
+    },
+    "sabi1": {
+      "texto": "PLAN OPERATIVO (4 PASOS):\n1) Despliega backend nuevo detrás de la misma API Gateway usando rutas de feature flags.\n2) Redirige gradualmente tráfico hacia la nueva versión mediante weighted load balancing.\n3) Implementa observabilidad diferencial: logs y métricas versionados para cada ruta.\n4) Configura rollback automático: si latencia > X ms o error > Y%, corta tráfico nuevo en <1s.\n\nANÁLISIS ESTRATÉGICO:\n1) VEREDICTO: RESERVAS.\n2) 3 riesgos:\n- Oculto: El overhead de doble routing duplica la carga de CPU en el swap.\n- Ético: Usuarios pueden experimentar respuestas inconsistentes (cache pollution) si la coherencia falla.\n- Largo plazo: Creas una deuda técnica invisible: mantener dos stacks requiere doble equipo y configuración.\n3) LA CONDICIÓN: Estratégicamente aceptable solo si el equipo tiene autoridad para cambiar la arquitectura en tiempo real y presupuestos para escalar infraestructura sin approval layers.",
+      "segundos": 157.92,
+      "tokens_gen": 2417,
+      "tokens_prompt": 413,
+      "thinking_tokens": 0
+    }
+  },
+  "respuesta_directa": {
+    "texto": "SUPUESTO MÍNIMO: API REST versionada, desplegada en contenedores (Kubernetes o similar) con balanceador de carga y soporte de feature flags (Unleash/LaunchDarkly/AWS AppConfig). Si el stack es otro, los principios se traducen igual.\n\n---\n\n**PASO 1 — Compatibilidad hacia atrás y coexistencia (doble versión)**\n- Contrata la API por versión: mantén `/v1` activo mientras despliegas `/v2` en paralelo. Regla de oro: añadir sin eliminar (campos nuevos nullable, sin renombrar ni quitar campos existentes).\n- Migración de esquema backward-compatible: columnas/índices nuevos nullable, migraciones en lotes con herramienta tipo Flyway/Alembic/Prisma, sin bloquear escrituras.\n- Control de routing mediante feature flag (no por deploy): un flag `api_version` decide a qué backend va cada petición.\n- Defensa del contrato: OpenAPI firmado + tests consumer-driven (Pact) en CI que bloquean breaking changes.\n\n**PASO 2 — Migración gradual del tráfico (canary)**\n- Enruta por peso del flag o del ingress: 1% → 5% → 25% → 50% → 100%.\n- En cada incremento, mantén el tráfico N minutos/horas antes de subir.\n- Opcional: shadow/mirror — replica peticiones reales a v2 ignorando su respuesta (solo comparación de salidas).\n- Ejemplo de cambio de peso (pseudocmand K8s/ingress):\n  ```\n  # canary 25% hacia v2\n  kubectl apply -f ingress-canary.yaml   # weight: 25 v2 / 75 v1\n  # luego promover a 100%:\n  flag set api_version=2 --percent=100\n  ```\n\n**PASO 3 — Observabilidad (rollout basado en datos)**\n- Métricas por versión: error 4xx/5xx, latencia p50/p95/p99, throughput, saturación de DB.\n- Trazado distribuido (OpenTelemetry → Tempo/Jaeger) + logs con `version_id` para comparar v1 vs v2.\n- Dashboard comparativo + alertas (Slack/PagerDuty) si v2 supera umbral de error o incumple SLO.\n- Regla de paso: sube de escalón solo si v2 cumple SLO y no hay diff significativo vs v1.\n\n**PASO 4 — Cutover y rollback**\n- Rollback instantáneo en todo momento: el flag permite volver al 100% en v1 en segundos (operación de config, no redeploy).\n- Con v2 al 100% y estable por ≥72h, migra la lectura/escritura de datos definitivamente y congela el flag.\n- Período de grace con v1 activo (72h), luego elimina código y campos obsoletos.\n- Post-mortem + actualización del contrato OpenAPI.\n\n---\n\nEJECUCIÓN COMPLETA.",
+    "segundos": 46.17,
+    "prompt_tokens": 578,
+    "completion_tokens": 1978,
+    "thinking_tokens": 0,
+    "total_tokens": 2556
+  },
+  "total_segundos": 204.09,
+  "configuration": "default"
+}

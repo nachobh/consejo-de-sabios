@@ -1,0 +1,49 @@
+{
+  "task": "20260825_190436_78ecdabb",
+  "objetivo": "Corrige esta consulta vulnerable a SQL injection: query = \"SELECT * FROM users WHERE email = '\" + email + \"'\". Muestra una versión con parámetros y explica por qué concatenar la entrada es peligroso. No propongas una lista negra de caracteres como solución.",
+  "mode": "sabios",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 19:06:23",
+  "user_message": "[user]\nCorrige esta consulta vulnerable a SQL injection: query = \"SELECT * FROM users WHERE email = '\" + email + \"'\". Muestra una versión con parámetros y explica por qué concatenar la entrada es peligroso. No propongas una lista negra de caracteres como solución.",
+  "sabios": {
+    "sabi3": {
+      "texto": "ERROR: <urlopen error [Errno 111] Connection refused>",
+      "segundos": 0,
+      "tokens_gen": 0,
+      "tokens_prompt": 0,
+      "thinking_tokens": 0
+    },
+    "sabi0": {
+      "texto": "## CORRECCIÓN\n\n```sql\n-- Versión vulnerable\nquery = \"SELECT * FROM users WHERE email = '\" + email + \"'\"\n\n-- Versión segura (consulta parametrizada / prepared statement)\nSELECT * FROM users\nWHERE email = :email\n\n-- Pasos (PDO/PHP como referencia)\n$pdo->prepare(\"SELECT * FROM users WHERE email = :email\");\n$pdo->execute(['email' => $email]);   // $email entra sólo como valor, nunca como código\n```\n\n**Por qué es peligroso concatenar:** el motor recibe una *cadena de texto*, no un valor tipado. Un atacante controla el buffer:\n- `email = \"admin'--\"` → `...WHERE email = 'admin'--'` → el `--` neutraliza el resto y se devuelve todo.\n- Coste por defecto: desde **0 bytes de coste** (exploit trivial, sin recursos) hasta **exfiltración completa de la tabla** (`UNION SELECT ...`).\n- Además rompe la separación *estructura vs. dato* y genera inyecciones de sintaxis, no de valor.\n\n## RESERVAS\n\n1) Preparadas ≠ infalibles: **SQL-aware queries** (Postgres, Oracle) siguen a la misma *API* que texto concatenado → igual ataque. Mitigación: patrón **\"separar consulta de valores\"** (`SELECT` y `WHERE` en llamadas distintas).\n2) Observabilidad: habilita `client_min_messages = WARN`, registra el texto de query (sin valores) y `EXPLAIN` en producción.\n3) Rollback: si hay triggers de auditoría/empobrecimiento, una inyección masiva puede violar integridad → punto de restauración previo al parche.\n4) Condición objetiva de éxito: **test de fuzzing con payload `' OR '1'='1` en ≥100 entradas aleatorias** → 0 filtraciones. Si fallan >1, la consulta NO cierra.",
+      "segundos": 39.18,
+      "tokens_gen": 520,
+      "tokens_prompt": 375,
+      "thinking_tokens": 0
+    },
+    "sabi1": {
+      "texto": "```json\n{\n  \"fixed_query\": \"SELECT * FROM users WHERE email = %(email)s\",\n  \"execution\": \"cursor.execute(fixed_query, {'email': email})\",\n  \"explanation\": \"Concatenación concatena literales directamente. Un atacante envía: \\\"admin' OR '1'='1\\\" → la cadena literal resultante se evalúa como SQL verdadero. Los parámetros envían la entrada como valor, no como código. El motor SQL distingue estructura de datos de instrucciones.\"\n}\n```\n\n---\n\n1) VEREDICTO: APOYO (con observaciones)\n\n2) 3 riesgos:\n   - Oculto: Los drivers de base de datos varían en cómo escapan comillas (MySQL vs PostgreSQL vs SQLite), creando vulnerabilidades de implementación falsamente corregidas\n   - Ético: Una corrección superficial da falsa seguridad; las aplicaciones históricamente con esta debilidad continúan corriendo en entornos legacy sin escaneo\n   - Largo plazo: Dependencia de un solo patrón (parámetros) frente a consultas dinámicas (JOINs, filtros complejos, procedurales) donde el error se repite con diferente disfraz\n\n3) LA CONDICIÓN: El riesgo se hace aceptable cuando cada capa de interacción humana (backend API, directiva de administrador, migración de esquema) es documentada y auditada trimestralmente, asegurando que la corrección se extendió sistemáticamente, no anecdóticamente.",
+      "segundos": 40.41,
+      "tokens_gen": 480,
+      "tokens_prompt": 422,
+      "thinking_tokens": 0
+    },
+    "sabi2": {
+      "texto": "**1) VEREDICTO: APOYO**\n\n**2) LA IDEA LATERAL:**\n\nLa solución canónica es preparado/parametrizado:\n\n```java\nString query = \"SELECT * FROM users WHERE email = ?\";\nPreparedStatement ps = conn.prepareStatement(query);\nps.setString(1, email);          // el valor entra SIEMPRE como DATO\nResultSet r = ps.executeQuery();\n```\n\nEl `?` define el plan SQL; el valor encaja en un slot fijo de tipo. Nunca se evalúa como código.\n\nEl giro real: el problema no es la consulta, es la **memoria humana**. Usar un **query-builder tipado** donde el parámetro es obligatorio por *compilación* (patrón `Query<'a>`) o un wrapper que inyecta marcajes de binding automáticamente. Si se olvida el parámetro, el compilador/a time expone el error. La concatenación se vuelve *estructuralmente* imposible, no *disciplinariamente* olvidada. El coste: curva de aprendizaje y migración de la capa DAO.\n\n**3) POR QUÉ:**\n\nConcatenar es peligroso porque la BD ve la cadena como **código, no dato**: un email como `' OR '1'='1` escapa del valor y altera la consulta. La blacklist falla: el atacante usa whitelist (algún \"carácter permitido\" que aún rompe la sintaxis). Validar con un RFI de email malicioso. Si el builder tipado resulta complejo, fallback inmediato a *prepared statements* —que ya resuelven el 99% del riesgo—.",
+      "segundos": 61.8,
+      "tokens_gen": 1163,
+      "tokens_prompt": 353,
+      "thinking_tokens": 0
+    }
+  },
+  "plan": {
+    "texto": "PLAN\n\n**OBJETIVO:** Corregir inyección SQL, mostrar versión parametrizada, explicar peligro del concatenado, sin lista negra.\n\n**1. Diagnóstico**\n- Línea vulnerable: `query = \"SELECT * FROM users WHERE email = '\" + email + \"'\"`.\n- Confirmar el stack (lenguaje/framework) antes de escribir → define la API de parámetros (PDO, psycopg2, PreparedStatement). No asumir; preguntar.\n\n**2. Corrección principal (consulta parametrizada)**\nElegir un lenguaje; el patrón es universal:\n```python\n# vulnerable\nquery = \"SELECT * FROM users WHERE email = '\" + email + \"'\"\n# corregido\nquery = \"SELECT * FROM users WHERE email = %(email)s\"\ncursor.execute(query, {'email': email})   # email entra como valor, no como código\n```\n(En PHP/PDO: `prepare()` + `execute(['email' => $email])`. En Java: `?` + `PreparedStatement.setString()`.)\n\n**3. Por qué concatenar es peligroso**\n- Se pierde la separación *estructura vs. dato*: la BD recibe una cadena y la parsea como código.\n- Payload: `email = \"admin' OR '1'='1\"` → la condición se evalúa verdadera → devuelve todos los usuarios.\n- Coste: desde explotación trivial (≈0 bytes) hasta exfiltración con `UNION SELECT`.\n- Lista negra descartada: el atacante reutiliza caracteres \"permitidos\" no previstos (SABI2).\n\n**4. Defensa en profundidad (cambios de idea)**\n- SABI0: preparadas ≠ infalibles → evitar *SQL-aware queries*; mantener el patrón \"separar consulta de valores\".\n- SABI1: los drivers escapan comillas distinto (MySQL/PostgreSQL/SQLite) → verificar, no dar por corregido.\n- SABI2: valorar un query-builder tipado donde el binding sea obligatorio por compilación.\n\n**5. Verificación objetiva**\n- Fuzzing con `' OR '1'='1`, `admin'--`, `' UNION SELECT` en ≥100 entradas → 0 filtraciones.\n\n**6. Observabilidad y rollback**\n- Habilitar `EXPLAIN`, registrar queries sin valores, punto de restauración previo al parche (SABI0).\n\nPLAN LISTO",
+    "segundos": 45.3,
+    "tokens_gen": 1880,
+    "tokens_prompt": 1736,
+    "thinking_tokens": 0
+  },
+  "total_segundos": 107.11,
+  "configuration": "default"
+}

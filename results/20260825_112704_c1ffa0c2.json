@@ -1,0 +1,49 @@
+{
+  "task": "20260825_112704_c1ffa0c2",
+  "objetivo": "Compara brevemente dos diseños para un servicio interno: A) una cola asíncrona con reintentos y B) una llamada síncrona directa. Para un proceso que tarda 30 segundos, tolera duplicados y debe seguir funcionando si el receptor se reinicia, recomienda uno y menciona dos riesgos o costes.",
+  "mode": "sabios",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 11:30:30",
+  "user_message": "[user]\nCompara brevemente dos diseños para un servicio interno: A) una cola asíncrona con reintentos y B) una llamada síncrona directa. Para un proceso que tarda 30 segundos, tolera duplicados y debe seguir funcionando si el receptor se reinicia, recomienda uno y menciona dos riesgos o costes.",
+  "sabios": {
+    "sabi0": {
+      "texto": "**1) VEREDICTO: APOYO (diseño A — cola asíncrona con reintentos)**\n\n**2) Tres argumentos técnicos:**\n\n- **Cierre de carga:** Un proceso de 30 s en modo síncrono bloquea la cola de hilos/pool del emisor. A 100 llamadas/min (~6/h) agotas el pool de conexiones y disparas cascada de timeouts por saturación de memoria. La cola desacopla productor/consumidor: el emisor libera recursos en milisegundos mientras se procesa.\n\n- **Resiliencia real al reinicio:** Si el receptor cae, la llamada síncrona devuelve timeout = fallo terminal del negocio, sin recuperación. La cola persiste los mensajes y reintentos; el consumidor reanuda tras reconectar. El dato duro: SLA de entrega pasa de \"dependiente de la disponibilidad del receptor\" (B) a \"eventualmente garantizado\" (A).\n\n- **Duplicados sin costo:** Al tolerar duplicados, el diseño A no exige idempotenciación estricta ni deduplicación de window. La llamada síncrona reintenta en el *mismo* receptor y genera duplicados por reintentos póstumos — algo que A aísla y B no controla.\n\n**Riesgos/costes:** A añade un broker (operación, dead-letter queues, poison messages) y write-amplificación si se usa tabla de BD. B es simple pero frágil a escala.\n\n**3) LA CONDICIÓN:** Cambio a B sólo si el volumen es verdaderamente marginal (pocos eventos/día) *y* la latencia de 30 s no impacta al negocio — pero en un servicio de 30 s, eso es improbable.",
+      "segundos": 101.62,
+      "tokens_gen": 868,
+      "tokens_prompt": 285,
+      "thinking_tokens": 0
+    },
+    "sabi2": {
+      "texto": "VEREDICTO: RESERVAS (soporto a A, pero con un giro). B queda enterrado: una llamada síncrona de 30s se convierte en punto muerto total cuando el receptor se reinicia — el remitente queda colgado esperando a un fantasma. La cola asíncrona con reintentos ya resuelve desacoplamiento, latencia y supervivencia a reinicios.\n\nLA IDEA LATERAL: Patrón de **outbox**. Olvida montar un sistema de reintentos aparte. Escribe el mensaje Y el estado en una única transacción local del remitente (la \"caja de salida\"). Un trigger la inyecta a la cola. Con **idempotency keys** en el remitente, los duplicados que dice \"tolerar\" pasan a ser deduplicados de gratis. El \"receptor se reinicia\" deja de importar porque el mensaje es durable, no vivo.\n\nPOR QUÉ: ataca el verdadero cáncer — el acoplamiento directo que convierte un fallo puntual en caída global. El coste es pagar por tranquilidad arquitectónica: transacción outbox (≈2x esfuerzo de código) y disciplina con las keys idempotentes en quien emite. No es complejidad extra, es la complejidad que ya tendrías con reintentos sueltos, mejor empaquetada.",
+      "segundos": 127.1,
+      "tokens_gen": 1282,
+      "tokens_prompt": 295,
+      "thinking_tokens": 0
+    },
+    "sabi1": {
+      "texto": "1) VEREDICTO: APOYO diseño A (Cola Asíncrona). La independencia es la única virtud sostenible en sistemas complejos.\n\n2) 3 RIESGOS:\na) Oculto: La cola oculta la latencia real. Si el consumo falla, la cola crece silenciosamente, acumulando deuda técnica que estalla en crisis de picos.\nb) Ético: Al delegar la entrega, delegamos también la responsabilidad. Creas una jerarquía implícita entre qué solicitudes se procesan primero y qué esperan.\nc) Largo plazo: Los reintentos sin control se convierten en fantasmas. Mantener esa complejidad de limpieza y cancelación a largo plazo exigirá recursos que hoy ignoras.\n\n3) LA CONDICIÓN: Solo aceptable si el sistema aplica *backpressure* visible: la cola se cierra o frena antes de saturar el receptor y existan alertas reales sobre su estado, no solo métricas de \"éxito\" superficial.",
+      "segundos": 133.42,
+      "tokens_gen": 1292,
+      "tokens_prompt": 311,
+      "thinking_tokens": 0
+    },
+    "sabi3": {
+      "texto": "1) VEREDICTO: RECHAZO.\n2) 3 FALLOS:\n   a) Premisa del Consenso: \"Tolerar duplicados\" es un escape, no un diseño. Asume que los datos duplicados no tienen un coste de corrupción real.\n   b) Falacia Técnica: Confunde tiempo de *procesamiento* con tiempo de *respuesta*. 30 segundos en sync es bloqueo; en async es solo espera.\n   c) Aversión al Riesgo: Asume reinicios como el único fallo real, ignorando la corrupción de estado o la pérdida de mensajes entre productor y cola.\n3) LA PREGUNTA: ¿Valoramos la complejidad aparente del sistema o la fragilidad real del dato?",
+      "segundos": 164.54,
+      "tokens_gen": 2129,
+      "tokens_prompt": 461,
+      "thinking_tokens": 0
+    }
+  },
+  "plan": {
+    "texto": "**PLAN — Servicio de 30s, tolerante a duplicados y a reinicios**\n\n**Recomendación: Diseño A (cola asíncrona con reintentos), implementado con patrón outbox + idempotency keys.**\n\n**Pasos:**\n\n1. **Receptor idempotente con clave de idempotencia.** Cada mensaje lleva un ID único (uuid del emisor); el receptor deduplica por clave, no por ventana de tiempo. → Convierte \"tolerar duplicados\" (crítica de **SABI3**) en deduplicación garantizada y aísla los duplicados por reintentos póstomos (**SABI0**).\n\n2. **Patrón outbox en el emisor.** Escribe mensaje + estado en una única transacción local; un poller/trigger lo inyecta a la cola. El mensaje es durable, no \" vivo\". → Resuelve el acoplamiento directo (**SABI2**) y la supervivencia al reinicio del receptor (**SABI0**).\n\n3. **Cola con reintentos acotados + backpressure.** Backoff exponencial acotado; si el receptor satura, la cola frene el consumo en vez de crecer infinitamente. → Cubre el cierre de carga del pool síncrono (**SABI0**) y el crecimiento silencioso de cola (**SABI1**).\n\n4. **Monitoreo de estado real + dead-letter.** Alertas de retardo, profundidad y poison messages; tras N intentos, mensaje al dead-letter con dashboard. → Evita los fantasmas de reintentos sin controlar (**SABI1**) y la gestión de poison messages (**SABI0**).\n\n**Dos riesgos/costes:**\n- **Coste operativo y de código:** broker + patrón outbox (≈2x esfuerzo, disciplina de claves idempotentes en quien emite). [SABI2, SABI0]\n- **Latencia oculta:** el proceso de 30s deja de ser visible en la ruta síncrona; exige supervisión activa para no acumular deuda técnica. [SABI1, SABI3]\n\n**Condición para volver a B:** sólo si el volumen es marginal (pocos eventos/día) y los 30s no impactan al negocio. [SABI0]\n\nPLAN LISTO",
+    "segundos": 41.33,
+    "tokens_gen": 1793,
+    "tokens_prompt": 1582,
+    "thinking_tokens": 0
+  },
+  "total_segundos": 205.87,
+  "configuration": "default"
+}

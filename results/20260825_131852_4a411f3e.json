@@ -1,0 +1,50 @@
+{
+  "task": "20260825_131852_4a411f3e",
+  "objetivo": "Una migración de base de datos debe añadir una columna obligatoria y cambiar el formato de una respuesta pública. Hay clientes antiguos que seguirán activos durante dos semanas. Detecta la incompatibilidad, propone una estrategia expand-and-contract en fases y define una condición objetiva para retirar la compatibilidad antigua.",
+  "mode": "solo",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 13:22:25",
+  "user_message": "[user]\nUna migración de base de datos debe añadir una columna obligatoria y cambiar el formato de una respuesta pública. Hay clientes antiguos que seguirán activos durante dos semanas. Detecta la incompatibilidad, propone una estrategia expand-and-contract en fases y define una condición objetiva para retirar la compatibilidad antigua.",
+  "sabios": {
+    "sabi0": {
+      "texto": "**VEREDICTO: RESERVAS**\n\n**1) Los 14 días son una métrica de riesgo, no una fecha.** Sin instrumentación de origen (cookie/version header en cada petición), no sabrás cuándo \"siguen activos\" deja de ser cierto. La condición de retirada sin telemetría es una conjetura, no un dato.\n\n**2) Expand ≠ abrupto, Contract ≠ simultáneo.** La columna nueva entra NULLABLE en la fase EXPAND; la haces NOT NULL solo cuando el 100% del tráfico sale de legacy. En ningún momento ejecutes ambas fases a la vez: es lo que quema producción en un solo commit.\n\n**3) El cambio de formato público es breaking change.** Durante EXPAND la API debe devolver el NUEVO formato sin romper a los viejos (ambos paralelos, no sustitución). \"Detectar la incompatibilidad\" es retroactivo; el expand la elimina por diseño.\n\n**LA CONDICIÓN:** Retira la capa de compatibilidad solo cuando **72h consecutivas con 0% de tráfico legacy MEDIDO** (no declarado por un dev) **+ 0 errores 5xx en los endpoints públicos**. Falta telemetría de origen → pasa APOYO a RECHAZO y se añade un proxy de versión (header `Accept-Version`) antes del 2026.",
+      "segundos": 114.58,
+      "tokens_gen": 1115,
+      "tokens_prompt": 275,
+      "thinking_tokens": 0
+    },
+    "sabi2": {
+      "texto": "1) VEREDICTO: RESERVAS — el expand-and-contract bien planteado, pero la trampa está en \"cambiar el formato público\": eso es lo que de verdad mata a los clientes, no la columna.\n\n2) LA IDEA LATERAL: No hagas el cambio de formato un interruptor a una hora. Añade la columna obligatoria **con DEFAULT** (la migración física queda 100 % segura, nadie se rompe al leerla). Luego segmenta por `Accept`/media type: `/v1` entrega el formato antiguo, `/v2` el nuevo. La columna es obligatoria solo **dentro del contrato de v2**, nunca global. Los clientes viejos siguen viendo el mismo wire-format; los nuevos obtienen el dato nuevo. El retiro no es por tiempo, es por evento.\n\n3) POR QUÉ: El problema real es que columna y formato están acoplados en tu plan, por eso hay colisión. Separar lo físico (columna con valor por defecto) de lo lógico (contrato por versión) elimina la ventana de incompatibilidad de raíz —los clientes de las \"dos semanas\" ni la sienten. Coste: gestionas 2 endpoints más y necesitas disciplina operativa de deprecación; además, la condición objetiva de retiro debe ser **monitor-driven, no fecha**: \"v1 vuelve 200 con tasa de errores ≤0 % durante N días consecutivos\", no \"pasaron 2 semanas\" (que fallaría en caso de un cliente zombi).",
+      "segundos": 122.7,
+      "tokens_gen": 1152,
+      "tokens_prompt": 285,
+      "thinking_tokens": 0
+    },
+    "sabi1": {
+      "texto": "1) VEREDICTO: RESERVAS\n\n2) Riesgos:\n- Oculto: Consistencia dual: bloqueos silenciosos o corrupción de datos si los writes no son estrictamente idempotentes durante la fase de coexistencia.\n- Ético: Transparencia: imponer silencio técnico sobre una inestabilidad programada de 14 días sin comunicar al usuario la ventana de riesgo real.\n- Largo Plazo: Complejidad arquitectónica: el esquema dual se convierte en deuda técnica no documentada, obligando a mantener rutas paralelas inútiles que nadie entiende.\n\n3) LA CONDICIÓN:\nEl corte final es legítimo solo tras 72 horas sin errores en reads/writes post-migración y con un procedimiento de rollback probado en producción, no una fecha arbitraria.",
+      "segundos": 127.28,
+      "tokens_gen": 1129,
+      "tokens_prompt": 301,
+      "thinking_tokens": 0
+    },
+    "sabi3": {
+      "texto": "1) VERDICTO: RESERVAS CÉLTICAS.\n\n2)\n- El Plan asume linealidad en dos semanas, ignorando la complejidad exponencial de datos históricos no mapeados y errores de validación ocultos.\n- La \"columna obligatoria\" es lógicamente contradictoria mientras conviva con lectores antiguos que no garantizan su llenado previo; ¿qué devuelve el sistema cuando no existe?\n- \"Condición objetiva\" carece de métrica; sin una definición binaria y automática, es una delegación de criterio a la intuición, no una restricción técnica.\n\n3) LA PREGUNTA QUE NADIE HACE: Si en la semana dos el nuevo formato rompe una integración crítica en producción, ¿la métrica \"condición objetiva\" cuenta como éxito la recuperación del servicio o el despliegue mismo? ¿O estás creando un sistema donde el éxito se mide por la inexistencia de errores, no por la supervivencia del dato?",
+      "segundos": 165.27,
+      "tokens_gen": 2188,
+      "tokens_prompt": 451,
+      "thinking_tokens": 0
+    }
+  },
+  "respuesta_directa": {
+    "texto": "# FASE B — EJECUCIÓN\n\n## Escario concreto (para ser autocontenido)\n- Tabla `orders`. Respuesta pública: endpoint `/api/orders` que devuelve `status` como **entero** (`1=pago`, `2=enruta`).\n- Cambio 1: añadir columna obligatoria `shipped_at` (NOT NULL).\n- Cambio 2: cambiar formato de `status` de entero a string (`PAID`, `ENRUTADO`).\n- Clientes activos durante 2 semanas: apps viejas que leen entero e insertan sin `shipped_at`.\n\n---\n\n## 1. DETECCIÓN DE LA INCOMPATIBILIDAD\nDos cambios rompe-cabezazos solapados que **deben desacoplarse**:\n\n- **Columna NOT NULL:** un `INSERT` sin `shipped_at` falla con restricción → los clientes/escritores viejos (y el `UPDATE` en bloque de la migración) se rompen.\n- **Formato `status`:** un cliente viejo que hace `int(response[\"status\"])` lanza `ValueError` al recibir `\"PAID\"`.\n\nRiesgo real: aplicar ambos a la vez en un deploy atómico = parada en doble. La estrategia expand-and-contract los separa en el tiempo.\n\n---\n\n## 2. FASE 1 — EXPAND (ampliar sin romper)\n\n**DB:** añadir columna **nullable con default** (dml no bloqueante), luego repoblar en batches:\n```sql\nALTER TABLE orders ADD COLUMN shipped_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP;\n\n-- repoblado en lotes de 5.000 (evita locks largos)\nUPDATE orders SET shipped_at = COALESCE(shipped_at, CURRENT_TIMESTAMP)\n WHERE id BETWEEN :min AND :max;   -- bucle hasta cubrir tabla\n```\n\n**API (despliegue A):** crear `/api/v2/orders` que devuelve `status` en string. El `/api/v1` **sigue vivo** deviendo entero. Ambos puntos escriben en la misma tabla (columna ya existe).\n\n---\n\n## 3. FASE 2 — COEXISTENCIA (ventana de 2 semanas)\n- Clientes nuevos → `/api/v2` (string) + leen `shipped_at`.\n- Clientes viejos → `/api/v1` (entero) siguen funcionando; sus escrituras insertan filas con `shipped_at` populated por el default.\n- La tabla contiene filas con formato mixto momentáneamente; el v2 normaliza al leer.\n\n---\n\n## 4. FASE 3 — VALIDACIÓN / MEDICIÓN (monitoreo pasivo)\n```\n- ratio = solicitudes_v2 / total_solicitudes   (dashboard por cliente)\n- errores_v1 = parsing 'int(status)' fallido   (debe ir a 0)\n- topClientes.reportVersion   (porcentaje con versión >= v2)\n```\n\n---\n\n## 5. FASE 4 — CONTRACT + CONDICIÓN OBJETIVA\n\n**Condición objetiva (las tres, simultáneas):**\n1. `ratio >= 0.95` mantenido **14 días consecutivos**.\n2. `errores_v1 == 0` en las últimas **48h**.\n3. `topClientes.reportVersion >= 0.98`.\n\nSolo al cumplirse las tres se ejecuta el contract:\n```sql\n-- convertir a obligatoria\nALTER TABLE orders ALTER COLUMN shipped_at SET NOT NULL;\nALTER TABLE orders ALTER COLUMN shipped_at DROP DEFAULT;\n```\n```python\n# retira compatibilidad antigua\ndel routes[\"/api/v1/orders\"]          # eliminar endpoint viejo\ndef status_out(s): return s.upper()   # ya solo string, sin rama entero\n```\n\n**Rollback:** mientras dure la ventana, el v1 sigue activo; si alguna condición no se cumple, se extiende el plazo 7 días y se reintegra el v1 antes de tocar esquema.\n\nPLAN LISTO",
+    "segundos": 48.22,
+    "prompt_tokens": 471,
+    "completion_tokens": 2163,
+    "thinking_tokens": 0,
+    "total_tokens": 2634
+  },
+  "total_segundos": 213.49,
+  "configuration": "default"
+}

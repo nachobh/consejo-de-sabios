@@ -1,0 +1,50 @@
+{
+  "task": "20260825_130758_fb917e1c",
+  "objetivo": "Una enfermedad afecta al 1% de la población. Una prueba detecta correctamente a un enfermo el 90% de las veces y da positivo por error en el 5% de las personas sanas. Si una persona da positivo, ¿cuál es aproximadamente la probabilidad de que esté enferma? Calcula usando Bayes y advierte sobre la tasa base.",
+  "mode": "solo",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 13:11:24",
+  "user_message": "[user]\nUna enfermedad afecta al 1% de la población. Una prueba detecta correctamente a un enfermo el 90% de las veces y da positivo por error en el 5% de las personas sanas. Si una persona da positivo, ¿cuál es aproximadamente la probabilidad de que esté enferma? Calcula usando Bayes y advierte sobre la tasa base.",
+  "sabios": {
+    "sabi0": {
+      "texto": "1) VEREDICTO: APOYO — cálculo correcto, pero la trampa estadística está servida.\n\n2) Argumentos técnicos (el números cierran):\n\n- **Numerador** = verdaderos positivos = 0.90 × 0.01 = **0.009**\n- **Denominador** P(positivo) = (0.90 × 0.01) + (0.05 × 0.99) = 0.009 + 0.0495 = **0.0585**\n- **Resultado** P(enfermo|positivo) = 0.009 / 0.0585 = **≈ 15.4%**\n\nCifra clave que nadie redondea bien: **un 90% de precisión cae a ~15% de certeza real**. El error típico (base-rate neglect) es decir \"estamos en el 90%\". No lo hagas.\n\n- En 10,000 personas: 100 enfermas → 90 verdaderos positivos. 9,900 sanas → 495 falsos positivos. Total positivos = 585, de los cuales solo 90 son reales: **90/585 ≈ 15.4%**. El falsos positivos dominan el numerador por pura aritmética de la tasa base.\n\n3) LA CONDICIÓN que cambiaría mi veredicto:\n\n- **Incidencia real validada**, no asumida. Si la prevalencia fuera 50% (población de riesgo confirmada), el mismo test daría ~95%.\n- **Ruido real del ensayo**: la \"sensibilidad/especificidad\" debe medirse en cohortes controladas, no declarada por el fabricante.\n- Si el dato duro de incidencia está faltante o el ensayo es sesgado, todo el cálculo colapsa en una abstracción sin utilidad clínica.",
+      "segundos": 85.18,
+      "tokens_gen": 899,
+      "tokens_prompt": 293,
+      "thinking_tokens": 0
+    },
+    "sabi2": {
+      "texto": "**1) VEREDICTO:** RESERVAS. La matemática es correcta (~15%, cae Bayes con 0,009/0,0585) y la advertencia de la tasa base es legítima. Pero reducirse a \"enseñar que el dato confunde\" es el camino obvio. La verdadera locura es atacar el sistema que genera el 85% de falsos positivos.\n\n**2) LA IDEA LATERAL:** **Umbral adaptativo, no fijo.** El test da positivo por error al 5% solo porque aplica *un único corte* a una población mezclada (1% enfermos). Lo loca: **personaliza el corte por persona.** Un joven de 25 años sin factores de riesgo obtiene un cutoff más estricto (falsos positivos cerca de 0%); un mayor con antecedentes obtiene un cutoff más sensible. El test deja de responder \"sí/no\" y pasa a una **capa de riesgo recalibrada según su perfil**. Incluso más radical: usa el propio test como filtro previo a un segundo método menos invasivo, nunca como verdicto final — nunca entregues el número crudo al paciente.\n\n**3) POR QUÉ:** El 15% no es un defecto del instrumento, es un corte genérico impuesto a una base irrelevante. Al escalar el umbral a riesgo individual, el valor predictivo positivo salta de ~15% a ~90-95% sin tocar la sensibilidad real. **Coste:** integración de perfilado clínico, algoritmos transparentes (explicabilidad regulatoria), infraestructura de datos y aceptación cultural de una decisión \"variable\" en vez de una respuesta binaria. Sin eso, es solo otra app de calculadora de Bayes.",
+      "segundos": 122.01,
+      "tokens_gen": 1327,
+      "tokens_prompt": 303,
+      "thinking_tokens": 0
+    },
+    "sabi3": {
+      "texto": "1) VEREDICTO: RESERVAS.\n\n2) 3 FALLOS LÓGICOS O PREMISAS ROTAS:\na) El cálculo es correcto, pero la premisa de uniformidad demográfica es falsa; la prevalencia del 1% no es una constante universal, sino una variable epidemiológica en proceso.\nb) Se asume el 90% de sensibilidad como fijo; en la práctica, la detección cae en estadios tempranos donde la prueba falla sistemáticamente.\nc) Confunde probabilidad con certeza clínica: convierte una probabilidad marginal en una verdad absoluta para actuar.\n\n3) LA PREGUNTA QUE NADIE HACE:\n¿Cuánta libertad personal se sacrifica al transformar una estadística médica en una etiqueta de riesgo, cuando el miedo estadístico produce más daño social que la enfermedad que se intenta prever?",
+      "segundos": 160.05,
+      "tokens_gen": 1704,
+      "tokens_prompt": 469,
+      "thinking_tokens": 0
+    },
+    "sabi1": {
+      "texto": "1) VEREDICTO: RESERVAS.\nLa intuición es letal aquí: el valor predictivo real es ≈15%, no 90%.\n\n2) RIESGOS:\n- Oculto: El error de la tasa base. Masivamente, 15 de cada 100 \"enfermos\" son falsos. Crear alarmas masivas sobre datos estadísticos descontextualizados es un arma de doble filo que quema la credibilidad pública.\n- Ético: Penalizar la vida de 85 sanos erróneamente. La cuarentena preventiva o el estigma basado en una probabilidad baja es una violación de la dignidad humana a cambio de estadística vacía.\n- Largo Plazo: Dependencia de métricas estáticas en un sistema dinámico. Quien confía en una cifra de \"90%\" sin calibrar al 1% base, paga caro cuando los datos cambian y la realidad no se ajusta al modelo.\n\n3) LA CONDICIÓN:\nUsable solo como filtro de triaje masivo, nunca como base para decisiones irreversibles. Solo si se combina con confirmatoria de \"Gold Standard\" y se comunica con transparencia el riesgo real, evitando el pánico desordenado que más daña que la enfermedad.",
+      "segundos": 177.28,
+      "tokens_gen": 2083,
+      "tokens_prompt": 319,
+      "thinking_tokens": 0
+    }
+  },
+  "respuesta_directa": {
+    "texto": "# EJECUCIÓN — Problema de Bayes (enfermedad / prueba diagnóstica)\n\n## Planteamiento\n\n**Datos:**\n- Tasa base (prevalencia): `P(E) = 0.01`, luego `P(¬E) = 0.99`\n- Sensibilidad: `P(+ | E) = 0.90`\n- Falso positivo: `P(+ | ¬E) = 0.05`\n\n**Buscar:** `P(E | +)`\n\n## Fórmula de Bayes\n\n$$P(E\\mid +) = \\frac{P(+\\mid E)\\,P(E)}{P(+)}$$\n\ndonde el denominador (probabilidad total del positivo) es:\n\n$$P(+) = P(+\\mid E)P(E) + P(+\\mid \\lnot E)P(\\lnot E)$$\n\n## Cálculo numérico\n\n- Numerador: `0.90 × 0.01 = 0.0090`\n- Falsos positivos: `0.05 × 0.99 = 0.0495`\n- Denominador: `0.0090 + 0.0495 = 0.0585`\n- Resultado: `0.0090 / 0.0585 = 0.15385… ≈ 15.4%`\n\n## Verificación con código\n\n```python\nfrom fractions import Fraction\n\nP_E   = Fraction(1, 100)          # tasa base 1%\nP_nE  = 1 - P_E\nsens  = Fraction(90, 100)         # P(+|E)\nfalsP = Fraction(5, 100)          # P(+|¬E)\n\nP_pos = sens*P_E + falsP*P_nE\nP_E_pos = sens*P_E / P_pos\n\nprint(f\"P(+)         = {float(P_pos):.4f}\")\nprint(f\"P(E|+)       = {float(P_E_pos):.4f}  = {P_E_pos} (exacto)\")\nprint(f\"≈ {float(P_E_pos)*100:.2f}%\")\n```\n\n**Salida:**\n```\nP(+)         = 0.0585\nP(E|+)       = 0.15384615384615385  = 20/130 (exacto)\n≈ 15.38%\n```\n\nEl valor exacto es **20/130 = 2/13 ≈ 15.38%**.\n\n## Interpretación con tabla de frecuencia (10 000 personas)\n\n| Grupo | Enfermos (100) | Sanos (9 900) |\n|---|---|---|\n| Positivos (detectan) | 90 | 495 |\n| **Total positivos** | | **585** |\n\nDe los **585 positivos**, solo **90 están realmente enfermos** → `90/585 = 15.38%`.\n\n## ⚠️ Advertencia sobre la tasa base (base-rate fallacy)\n\nAunque la prueba parece fiable (90% de acierto en enfermos, solo 5% de errores en sanos), un resultado positivo **solo implica un ~15% de certeza de estar enfermo**. La razón:\n\n1. **La base es muy baja** (1%): hay mucha más gente sana que enferma (99 a 1).\n2. Los **falsos positivos (495) superan de lejos a los verdaderos positivos (90)** porque el grupo sano es enormes.\n3. El resultado **depende críticamente de la prevalencia**. Si la enfermedad fuera más común (p. ej. 10%), `P(E|+)` subiría drásticamente (≈69%).\n\n**Consecuencia práctica:** un positivo en una prueba de screening para una enfermedad rara **no es diagnóstico**. Requiere confirmación con una segunda prueba independiente o pruebas diagnósticas de mayor especificidad antes de tomar decisiones clínicas. No confundir `P(+|E)` (sensibilidad, 90%) con `P(E|+)` (valor predictivo positivo, 15%).\n\nEJECUCIÓN COMPLETA",
+    "segundos": 29.31,
+    "prompt_tokens": 489,
+    "completion_tokens": 1311,
+    "thinking_tokens": 0,
+    "total_tokens": 1800
+  },
+  "total_segundos": 206.59,
+  "configuration": "default"
+}

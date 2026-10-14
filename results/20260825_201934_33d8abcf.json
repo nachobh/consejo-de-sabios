@@ -1,0 +1,50 @@
+{
+  "task": "20260825_201934_33d8abcf",
+  "objetivo": "Extrae de esta frase los datos en formato JSON válido con las claves nombre, ciudad y años: 'Marta vive en Valencia y tiene 37 años.' No añadas texto fuera del JSON.",
+  "mode": "solo",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 20:20:13",
+  "user_message": "[user]\nExtrae de esta frase los datos en formato JSON válido con las claves nombre, ciudad y años: 'Marta vive en Valencia y tiene 37 años.' No añadas texto fuera del JSON.",
+  "sabios": {
+    "sabi3": {
+      "texto": "ERROR: <urlopen error [Errno 111] Connection refused>",
+      "segundos": 0,
+      "tokens_gen": 0,
+      "tokens_prompt": 0,
+      "thinking_tokens": 0
+    },
+    "sabi1": {
+      "texto": "{\n  \"nombre\": \"Marta\",\n  \"ciudad\": \"Valencia\",\n  \"años\": 37\n}",
+      "segundos": 19.1,
+      "tokens_gen": 182,
+      "tokens_prompt": 408,
+      "thinking_tokens": 0
+    },
+    "sabi0": {
+      "texto": "```json\n{\n  \"nombre\": \"Marta\",\n  \"ciudad\": \"Valencia\",\n  \"años\": 37\n}\n```\n\n## Reservas técnicas\n\n1. **Validación de entrada:** la frase es un string no tipado. Sin parsing explícito (regex o tokenizer), ¿cómo se detecta la ciudad vs. un apodo, o \"Valencia\" escrito con tilde? Falta definición de esquema/regex.\n\n2. **Falta una clave del objetivo:** pediste `años`, pero el JSON incluye tres claves. Confirmo que `años` sea entero (37), no string, para que sea serializable y ordenable.\n\n3. **Sin límites ni rollback:** no está definido qué ocurre si la frase es ambigua o no contiene la ciudad (¿throw, null, o fallback?). En producción, una operación de extracción debe devolver error tratado, no excepciones silenciosas.\n\n## Condición\nQue aportes el **esquema de entrada** (patrón regex/especificación) y la **política de fallo** (qué hacer si no se encuentran las 3 claves) para que esta extracción sea reproducible y no dependa del ojo del consumidor.",
+      "segundos": 26.06,
+      "tokens_gen": 337,
+      "tokens_prompt": 361,
+      "thinking_tokens": 0
+    },
+    "sabi2": {
+      "texto": "```json\n{\"nombre\": \"Marta\", \"ciudad\": \"Valencia\", \"años\": 37}\n```\n\n**1) VEREDICTO:** APOYO — extracción correcta y limpia.\n\n**2) LA IDEA LATERAL:** El problema oculto no es *extraer*, sino **fallar silenciosamente**. Si en vez de una frase metes `'Marta, 37 años, Valencia, Valencia'` o `'37 años'` suelta, el JSON actual devolvería algo absurdo sin que nadie lo detecte. Propuesta: envuelve la extracción en un esquema con validación estricta — claves obligatorias, tipado correcto (`años` como número, no string), y si no se cumplen, devuelve `null` con una clave `error` que explique por qué. \"¿Y si al revés premiamos al error en vez de solo celebrar al acierto?\"\n\n**3) POR QUÉ:** Resuelve la vulnerabilidad de datos sucios: el input es texto libre, y el texto siempre tiene trampas (doble mención, números con decimales, ciudad repetida). Un paso extra que valida cada clave antes de devolver JSON evita que downstream rotos por un dato corrupto.\n\n**Coste/riesgo principal:** añade ~3 líneas de código (validación de esquema) y una regla \"sin error = sin salida\".\n**Primer paso:** definir un schema (nombre: string, ciudad: string, años: integer) y rechazar si no se ajusta.\n**Validación:** inyectar frases con doble ciudad, `\"Marta 37.5 años\"` o campo en blanco y comprobar que no devuelven JSON basura.\n**Alternativa si falla la validación:** relajarte a tipado flexible (`any`) — pero pierdes la seguridad inicial; la recomiendo solo si tus inputs están limpios.",
+      "segundos": 27.76,
+      "tokens_gen": 504,
+      "tokens_prompt": 339,
+      "thinking_tokens": 0
+    }
+  },
+  "respuesta_directa": {
+    "texto": "```json\n{\n  \"nombre\": \"Marta\",\n  \"ciudad\": \"Valencia\",\n  \"años\": 37\n}\n```",
+    "segundos": 11.59,
+    "prompt_tokens": 815,
+    "completion_tokens": 461,
+    "thinking_tokens": 0,
+    "total_tokens": 1276
+  },
+  "total_segundos": 39.35,
+  "configuration": "default"
+}

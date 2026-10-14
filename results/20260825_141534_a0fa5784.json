@@ -1,0 +1,64 @@
+{
+  "task": "20260825_141534_a0fa5784",
+  "objetivo": "Extrae de esta frase los datos en formato JSON válido con las claves nombre, ciudad y años: 'Marta vive en Valencia y tiene 37 años.' No añadas texto fuera del JSON.",
+  "mode": "full",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 14:18:15",
+  "user_message": "[user]\nExtrae de esta frase los datos en formato JSON válido con las claves nombre, ciudad y años: 'Marta vive en Valencia y tiene 37 años.' No añadas texto fuera del JSON.",
+  "sabios": {
+    "sabi0": {
+      "texto": "1) VEREDICTO: APOYO\n\n2) Argumentos:\n- Extracción unívoca y sin ambigüedad semántica: \"Marta\"→nombre, \"Valencia\"→ciudad, \"37\"→años. No requiere LLM ni modelos pesados; regex/rule-based resuelve el 99,9% de frases sintácticas similares.\n- Coste y latencia triviales: ejecución sub-milisegundo (~0.1–1 ms), coste computacional ≈0. Robusto y determinista.\n- Un detalle de parsing: el \"37\" debe agruparse como entero. El riesgo real es el splitting incorrecto (leer \"3\" y \"7\") o confusión entre número y abreviatura. La regla debe anclar el número a la palabra \"años\" por adyacencia, no por posición.\n\nSalida: `{\"nombre\":\"Marta\",\"ciudad\":\"Valencia\",\"años\":37}`. Cumple \"sin texto fuera del JSON\" porque es solo el objeto.\n\n3) LA CONDICIÓN:\nCambiaría a RESERVAS si la cadena fuera no lineal (formato con saltos/whitespace raras), si el valor \"37\" pudiera confundirse con una abreviatura (ej. \"37 m\" → metros), o si el corpus requiriera generalización a cientos de estructuras distintas — ahí sí se justifica un modelo. En la forma dada, el enfoque determinista es la solución correcta.",
+      "segundos": 56.5,
+      "tokens_gen": 570,
+      "tokens_prompt": 256,
+      "thinking_tokens": 0
+    },
+    "sabi1": {
+      "texto": "1) VEREDICTO: RESERVAS\n\n2) 3 RIESGOS:\n- Oculto: La validación estricta de \"JSON válido\" sin error-tolerancia crea puntos de fallo únicos; un parámetro corrupto colapsa toda la cadena, no solo la respuesta.\n- Ético: La exigencia de \"texto fuera del JSON\" ignora que el operador humano necesita contexto para detectar errores; transformar datos en cajones estériles prioriza formato sobre comprensión.\n- Largo plazo: La dependencia de pautas rígidas atrophy el criterio del analista; pronto pedirás scripts en lugar de leer la frase.\n\n3) LA CONDICIÓN: Esto se hace aceptable solo si el JSON es parte de una API pública donde el receptor humano ha sido eliminado, la validación se prueba con cientos de edge-cases antes del despliegue, y existe un proceso de rollback manual si la extracción produce inconsistencia lógica en los datos de destino.",
+      "segundos": 61.77,
+      "tokens_gen": 487,
+      "tokens_prompt": 282,
+      "thinking_tokens": 0
+    },
+    "sabi3": {
+      "texto": "1) VEREDICTO: RESERVAS\n\n2) FALLOS LÓGICOS O PREMISAS ROTAS:\n- PREMISA NO DEMOSTRADA (implícita): Que el lenguaje natural es estructurable perfectamente sin ambigüedad. La frase mezcla conjunciones donde la atribución \"37 años\" podría pertenecer a alguien más en contextos distintos.\n- ASUNCIÓN DE CLARIDAD UNIVERSAL: Se da por hecho que siempre hay separación nítida entre sujeto y predicado. ¿Qué ocurre con \"Marta, que vive en Valencia, tiene 37 años\"? ¿Qué hace el parser?\n- DICTOMÍA OCULTA: \"JSON válido\" se presenta como único estado posible, ignorando casos de campos faltantes, valores no numéricos, o necesidad de normalización. \"No añadas texto\" es restrictivo sin especificar manejo de errores.\n\n3) LA PREGUNTA QUE NADIE HACE:\n¿Quién valida la veracidad de la extracción, y más importante: ¿Qué sucede cuando el JSON es sintácticamente correcto pero semánticamente engañoso? Si el objetivo es verdad, no basta con formato válido —y nadie pregunta si la frase original es confiable.",
+      "segundos": 72.42,
+      "tokens_gen": 661,
+      "tokens_prompt": 432,
+      "thinking_tokens": 0
+    },
+    "sabi2": {
+      "texto": "**1) VEREDICTO:** RESERVAS\n\n**2) LA IDEA LATERAL:** No extraigas *de* la frase. El \"formato de salida estricto\" es la trampa que hace creer que necesitas una IA para esto. **Gira el problema al revés:** para entradas de este tipo (bien formadas, en inglés, sin ruido) el verdadero coste no es la inteligencia, es la **robustez**. En lugar de pedirle al LLM que \"extraiga y guarde\", hazlo al revés: pídele que **reconstruya la frase a partir de un JSON candidato**, y valida ese round-trip. O, si hay volumen, abandona el LLM: un parser regex (`\\b(Marta|Pablo|Ana)\\b`, ciudad, número-2dígitos) + validación con `JSON.parse`. El LLM solo debe ser el *último recurso* ante entradas irreconocibles.\n\n**3) POR QUÉ:** El problema real es que el LLM \"elige\" el formato, y esa libertad es la que te da JSON basura o texto parásito. Resuelve el problema de **determinismo** y **coste**: sin LLM eliminas latencia, tokens por llamada y riesgo de alucinaciones; con el round-trip eliminas JSON inválido por diseño, no por buena suerte.\n\n**Coste:** solo es viable si la variabilidad de la entrada te justifica pagar por la flexibilidad del LLM. Si el 95% de tus frases ya las maneja un regex, estás sobre-ingeniería. Miden el porcentaje primero.",
+      "segundos": 73.58,
+      "tokens_gen": 904,
+      "tokens_prompt": 266,
+      "thinking_tokens": 0
+    }
+  },
+  "plan": {
+    "texto": "PLAN:\n\nEl objetivo se reduce a extracción determinista de una sola frase bien formada. No requiere LLM.\n\n**Paso 1 — Extracción con regex anclada (determinista):**\n- nombre: palabra capitalizada inicial → \"Marta\"\n- ciudad: segmento tras \"vive en \" → \"Valencia\"\n- años: número directamente adyacente a \"años\" → `\\b(\\d+)\\s+años\\b` → 37, convertido a entero\n*Cubre SABI0 (anclar el número por adyacencia, no por posición) y SABI2 (sin LLM, la robustez manda).*\n\n**Paso 2 — Construcción y validación:**\n- Ensembla el objeto `{\"nombre\":\"Marta\",\"ciudad\":\"Valencia\",\"años\":37}`.\n- Asegura que \"años\" sea entero, no string.\n- Aplica `JSON.parse` como verificación; si valida, se emite.\n*Cubre SABI1 (evita el punto de fallo único con validación explícita) y SABI2 (sin JSON inválido por diseño).*\n\n**Paso 3 — Salida limpia:**\n- Emite solo el objeto: sin comillas externas, sin bloque markdown, sin texto adicional.\n*Cubre SABI0 (\"sin texto fuera del JSON\").*\n\n**Nota de alcance:** SABI3 apunta a ambigüedades potenciales (atribución, campos faltantes, \"JSON válido\" como único estado), pero la entrada es fija y sin ruido; el plan cubre el caso concreto. Para un corpus general se necesitaría pipeline con edge-cases y rollback manual —condición pedida por SABI1—, fuera del alcance de esta extracción única.\n\n**Salida final:**\n```\n{\"nombre\":\"Marta\",\"ciudad\":\"Valencia\",\"años\":37}\n```\n\nPLAN LISTO",
+    "segundos": 37.1,
+    "tokens_gen": 1593,
+    "tokens_prompt": 1646,
+    "thinking_tokens": 0
+  },
+  "arbitro": {
+    "texto": "VEREDICTO GLOBAL: APROBADO CON CAMBIOS\n\nCAMBIOS:\n1. **Definir la rama de fallo** (cierra el hueco lógico del Abogado del Diablo, SABI3, que pesa DOBLE por ser argumento lógico y no estilístico): si el regex no encuentra un campo o `JSON.parse` falla, emitir `{\"error\":\"extraccion_fallida\"}`. El plan actual solo dice \"si valida, emite\", pero no qué pasa si no — punto de fallo único que SABI1 señala correctamente.\n2. **Mantener regex anclada por adyacencia** como método primario (SABI0 y SABI2 coinciden en que el determinismo manda; SABI2 respalda explícitamente `\\b\\d+\\s+años\\b`).\n3. **Descartar el round-trip de SABI2** como sobre-ingeniería para una entrada única; sí adoptar su premisa de que el LLM es último recurso.\n4. **Ignorar los puntos fuera de alcance de SABI3** (ambigüedad de atribución, \"Marta, que vive en Valencia…\"): la entrada es fija y bien formada, no son aplicables. Conservar solo su crítica al manejo de errores.\n5. **Ignorar los argumentos estilísticos de SABI1** (ético/atrofia a largo plazo); su único punto duro (punto de fallo único) queda mitigado con el cambio 1. SABI2 devolvió formato correcto, se analiza normalmente.\n\nPLAN FINAL:\nExtracción determinista de una sola frase bien formada. **Paso 1 — Extracción con regex anclada:** nombre = primera palabra capitalizada → \"Marta\"; ciudad = segmento tras \"vive en \" → \"Valencia\"; años = `\\b(\\d+)\\s+años\\b` → 37, convertido a entero (anclado por adyacencia, no por posición, evitando splitting erróneo). **Paso 2 — Construcción y validación:** ensamblar `{\"nombre\":\"Marta\",\"ciudad\":\"Valencia\",\"años\":37}`, asegurando que \"años\" sea entero. Aplicar `JSON.parse` como verificación. **Paso 3 — Ramas de salida:** si valida, emitir el objeto; si algún campo falta o `JSON.parse` falla, emitir `{\"error\":\"extraccion_fallida\"}`. En ambos casos la salida es JSON válido único, sin comillas externas, sin bloque markdown y sin texto adicional. **Salida final:**\n```\n{\"nombre\":\"Marta\",\"ciudad\":\"Valencia\",\"años\":37}\n```\nEste plan conserva la eficiencia sub-milisegundo y el coste ≈0 (SABI0), elimina el punto de fallo único con fallback definido (SABI1/SABI3) y mantiene el determinismo sin LLM (SABI2).",
+    "segundos": 42.22,
+    "tokens_gen": 1792,
+    "tokens_prompt": 1993,
+    "thinking_tokens": 0
+  },
+  "plan_final": "PLAN:\n\nEl objetivo se reduce a extracción determinista de una sola frase bien formada. No requiere LLM.\n\n**Paso 1 — Extracción con regex anclada (determinista):**\n- nombre: palabra capitalizada inicial → \"Marta\"\n- ciudad: segmento tras \"vive en \" → \"Valencia\"\n- años: número directamente adyacente a \"años\" → `\\b(\\d+)\\s+años\\b` → 37, convertido a entero\n*Cubre SABI0 (anclar el número por adyacencia, no por posición) y SABI2 (sin LLM, la robustez manda).*\n\n**Paso 2 — Construcción y validación:**\n- Ensembla el objeto `{\"nombre\":\"Marta\",\"ciudad\":\"Valencia\",\"años\":37}`.\n- Asegura que \"años\" sea entero, no string.\n- Aplica `JSON.parse` como verificación; si valida, se emite.\n*Cubre SABI1 (evita el punto de fallo único con validación explícita) y SABI2 (sin JSON inválido por diseño).*\n\n**Paso 3 — Salida limpia:**\n- Emite solo el objeto: sin comillas externas, sin bloque markdown, sin texto adicional.\n*Cubre SABI0 (\"sin texto fuera del JSON\").*\n\n**Nota de alcance:** SABI3 apunta a ambigüedades potenciales (atribución, campos faltantes, \"JSON válido\" como único estado), pero la entrada es fija y sin ruido; el plan cubre el caso concreto. Para un corpus general se necesitaría pipeline con edge-cases y rollback manual —condición pedida por SABI1—, fuera del alcance de esta extracción única.\n\n**Salida final:**\n```\n{\"nombre\":\"Marta\",\"ciudad\":\"Valencia\",\"años\":37}\n```\n\nPLAN LISTO",
+  "ejecucion": {
+    "texto": "{\"nombre\":\"Marta\",\"ciudad\":\"Valencia\",\"años\":37}",
+    "segundos": 8.24,
+    "tokens_gen": 339,
+    "tokens_prompt": 894,
+    "thinking_tokens": 0
+  },
+  "total_segundos": 161.15,
+  "configuration": "default"
+}

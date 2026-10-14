@@ -1,0 +1,49 @@
+{
+  "task": "20260825_111521_76244eb0",
+  "objetivo": "Una tienda aplica primero un descuento del 20% y después un cupón adicional del 10% sobre el precio ya rebajado. Si el precio original es 250 euros, ¿cuál es el precio final y qué descuento equivalente único se ha aplicado? Explica el cálculo brevemente.",
+  "mode": "sabios",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 11:17:34",
+  "user_message": "[user]\nUna tienda aplica primero un descuento del 20% y después un cupón adicional del 10% sobre el precio ya rebajado. Si el precio original es 250 euros, ¿cuál es el precio final y qué descuento equivalente único se ha aplicado? Explica el cálculo brevemente.",
+  "sabios": {
+    "sabi3": {
+      "texto": "1) VEREDICTO: RESERVAS\n\n2) 3 fallos lógicos o premisas rotas:\n- Asunción implícita de multiplicatividad: Se toma como dado que % sobre % se combinan multiplicativamente (sostenido por el propio planteamiento)\n- Equivalencia no demostrada: Asumir que \"descuento equivalente único\" tiene valor pragmático cuando la percepción del consumidor no es lineal\n- Descuento temporal ignorado: Tratar los 20% y 10% como eventos simultáneos cuando en realidad pueden estar en cadenas temporales distintas\n\n3) LA PREGUNTA QUE NADIE HACE:\n\n¿Está el equivalente del 28% real cuando la psicología del precio ancla al primero rebajado (200€) como referencia, haciendo que el segundo 10% se perciba como \"regalo\" adicional y no como descuento compuesto? El cálculo es correcto pero el consumidor paga lo mismo, lo que siente es otro problema.",
+      "segundos": 54.11,
+      "tokens_gen": 479,
+      "tokens_prompt": 456,
+      "thinking_tokens": 0
+    },
+    "sabi0": {
+      "texto": "**1) VEREDICTO: APOYO**\n\n**2) Cálculo verificado (cierra en red redonda):**\n- Precio tras −20%: 250 × 0,80 = **200 €**\n- Precio tras cupón −10%: 200 × 0,90 = **180 €**\n- Ahorro real: 250 − 180 = **70 €**\n- Descuento equivalente único: 70 / 250 = **28 %**\n\nNo es 30 %. El error más común es sumar 20% + 10% = 30%. Falla por no aplicar el segundo descuento sobre el precio ya rebajado, no sobre el original. El operador correcto es la composición de factores multiplicativos: **0,80 × 0,90 = 0,72**, es decir, paga el 72% y ahorra el 28%.\n\nLos dos precios posibles por cliente son inequívocos y el modelo algebraico (p × f₁ × f₂ = p × f_equiv) tiene solución única.\n\n**3) LA CONDICIÓN:**\nSi el cupón del 10% se aplicara sobre el precio original (250€, no sobre el 200€) —lo que harían algunas implementaciones mal diseñadas—, el resultado cambiaría: 250 − 25 = 225€, y el descuento equivalente sería **20 %**, no 28 %. La condición crítica es en qué base se fija el descuento compuesto. Este detalle de referencia del segundo descuento es lo único que puede distorsionar el resultado.",
+      "segundos": 55.06,
+      "tokens_gen": 544,
+      "tokens_prompt": 280,
+      "thinking_tokens": 0
+    },
+    "sabi2": {
+      "texto": "**1) VEREDICTO:** APOYO al cálculo — y una corrección sutil de mentalidad.\n\n**La matemática:** 250€ → ×0,80 → 200€ → ×0,90 → **180€**. El descuento equivalente NO es 30% (20%+10%), sino **28%**, porque el segundo corte actúa sobre el precio ya rebajado, no sobre el original.\n\n**2) LA IDEA LATERAL:** ¿Y si lo hacemos al revés? Deja de anunciar dos porcentajes (\"20% + 10%\") y vende un único número: **\"28% de descuento\"**. Los consumidores odian repensar el precio dos veces. Pregunta cognitiva real: frente a \"20% + 10%\", el cerebro asume 30% (anclaje aditivo). El 28% real se ve como una *perdida* del 2%.\n\n**3) POR QUÉ:** Este sesgo genera una fuga silenciosa de margen y de percepción de \"buena oferta\". El coste de cambiar a descuento único: (a) el equipo de marketing reprograma campañas y (b) hay que educar en escaparates para que no vean \"y 10% más\" como \"¡ah, más oferta!\". Pero el beneficio es brutal: elimina la *carga mental* del descuento apilado, aumenta la conversión percibida y simplifica el checkout. Quien muestre \"28%\" y el competidor \"20%+10%\", gana sin bajar un céntimo.\n\n**Giro lateral radical:** convierte el descuento doble en un *gancho de engagement* — \"Desbloquea el 10% extra en tu próxima compra\" — para que el descuento del hoy se convierta en lealtad de mañana.",
+      "segundos": 66.96,
+      "tokens_gen": 677,
+      "tokens_prompt": 290,
+      "thinking_tokens": 0
+    },
+    "sabi1": {
+      "texto": "1) VEREDICTO: APOYO (CON PRECAUCIÓN).\n\n2) 3 riesgos:\n*   Oculto: El consumidor suma porcentajes (20% + 10% = 30%) y percibe defraudación si se compara mal, erosionando la confianza sin cambiar el precio.\n*   Ético: ¿El \"28% equivalente\" es una herramienta honesta de comunicación o un señuelo simplificador para ocultar una operación compuesta?\n*   Largo plazo: La complejidad en la fijación de precios hace que el cliente deje de ver valor y empiece a ver costo de decisión y esfuerzo.\n\n3) LA CONDICIÓN:\nSe valida si el desglose es público y claro: (250 × 0.8) × 0.9 = 180€. El 28% es la verdad matemática real (70 de ahorro sobre 250). Solo acepto la oferta si la transparencia en el cálculo compensa la complejidad del descuento compuesto, evitando que la retórica de la oferta supere la sustancia del ahorro real.",
+      "segundos": 107.02,
+      "tokens_gen": 1809,
+      "tokens_prompt": 306,
+      "thinking_tokens": 0
+    }
+  },
+  "plan": {
+    "texto": "PLAN\n\n**Paso 1 — Calcular el precio final por composición multiplicativa.**\nAplicar ambos factores de forma encadenada: 250 × 0,80 = 200 € → 200 × 0,90 = **180 €**. Resultado: ahorro real de 70 €.\n*Cubre a SABI0 (precisa que el factor correcto es 0,80 × 0,90 = 0,72, no 0,70).*\n\n**Paso 2 — Derivar el descuento equivalente único y exponer el error común.**\nDescuento único = 70 / 250 = **28 %**, NO 30 %. Declarar explícitamente que 20 % + 10 % = 30 % es un error (anclaje aditivo).\n*Cubre a SABI0 y anticipa el riesgo oculto de SABI1.*\n\n**Paso 3 — Transparentar el desglose paso a paso.**\nMostrar (250 × 0,8) × 0,9 = 180 € de forma pública para que el cliente vea que el 28 % es matemáticamente honesto, no un señuelo.\n*Cubre al SABI1 (condición de transparencia) y al SABI3 (valor pragmático del equivalente).*\n\n**Paso 4 — Ofrecer el framing de \"28 % único\" como alternativa de comunicación.**\nSugirir anunciar el descuento único en vez de \"20 % + 10 %\" para reducir la carga mental del cliente, matizando que implica reprogramar campañas y educar en escaparates.\n*Cubre al SABI2 (idea lateral), pero sin adoptarlo como obligación.*\n\n**Paso 5 — Aclarar la condición crítica de referencia y el matiz psicológico.**\nSeñalar que el resultado depende de que el 10 % se aplique sobre el 200 € (rebajado), no sobre los 250 € (caso 225 € / 20 %). Reconocer la reserva de SABI3: el precio es igual, pero la percepción del consumidor puede anclarse al 200 €; esto es un comentario de comunicación, no un cambio del cálculo.\n*Cobre a SABI3 (psicología del precio) y cierra la condición de SABI0.*\n\n**Entregable:** respuesta con (a) precio final 180 €, (b) descuento equivalente 28 %, (c) explicación breve, (d) nota de transparencia y (e) advertencia sobre la base del descuento.\n\nPLAN LISTO",
+    "segundos": 26.06,
+    "tokens_gen": 1092,
+    "tokens_prompt": 1750,
+    "thinking_tokens": 0
+  },
+  "total_segundos": 133.08,
+  "configuration": "default"
+}

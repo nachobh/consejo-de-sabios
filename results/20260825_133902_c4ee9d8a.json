@@ -1,0 +1,49 @@
+{
+  "task": "20260825_133902_c4ee9d8a",
+  "objetivo": "Compara brevemente dos diseños para un servicio interno: A) una cola asíncrona con reintentos y B) una llamada síncrona directa. Para un proceso que tarda 30 segundos, tolera duplicados y debe seguir funcionando si el receptor se reinicia, recomienda uno y menciona dos riesgos o costes.",
+  "mode": "sabios",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 13:43:05",
+  "user_message": "[user]\nCompara brevemente dos diseños para un servicio interno: A) una cola asíncrona con reintentos y B) una llamada síncrona directa. Para un proceso que tarda 30 segundos, tolera duplicados y debe seguir funcionando si el receptor se reinicia, recomienda uno y menciona dos riesgos o costes.",
+  "sabios": {
+    "sabi1": {
+      "texto": "1) VEREDICTO: APOYO CON RESERVAS\n\n2) RIESGOS:\n- Oculo: La cola se convierte en nueva fuente central de fallo; su degradación pasa desapercibida hasta que el backlog se vuelve crítico.\n- Ético: Latencia oculta que ignora las expectativas humanas de respuesta inmediata; los usuarios sufren sin saber que el sistema \"funciona\".\n- Largo plazo: Drift operacional — monitorizar reintentos, duplicados y dead-letter queues requiere cultura de observabilidad que rara vez se construye.\n\n3) LA CONDICIÓN:\nEl diseño de cola es aceptable solo si el sistema establece idempotencia explícita en los receptores y mantiene un dead-letter queue con alertas proactivas. Sin esto, la redundancia teórica se vuelve una ilusión: la asincronía convierte la inmediatez en deuda técnica diferida, cuyo coste final recae en el equipo que debe resolver crisis de backlog en lugar de innovar.",
+      "segundos": 72.8,
+      "tokens_gen": 597,
+      "tokens_prompt": 311,
+      "thinking_tokens": 0
+    },
+    "sabi2": {
+      "texto": "1) **VEREDICTO: RESERVAS**\nEl camino obvio (A, cola asíncrona) es el correcto para tu caso, pero no es el único. Te propongo reescribir el problema.\n\n2) **LA IDEA LATERAL:** Invierte el esquema. Olvida el \"¿qué pasa si el receptor cae?\" y haz lo contrario: **el receptor decide procesar en local, síncrono, cuando está vivo, e idéntico**. La cola asíncrona deja de ser un destino de procesamiento y se convierte en un **duplicado de recuperación puro**: si el receptor recibe el evento pero NO puede ejecutarlo (reiniciándose justo después), guarda el payload y lo reintenta. Si lo puede ejecutar, lo hace él mismo y ni siquiera entra en la cola. Para que esto funcione, la deduplicación idempotente no la haces tú: la hace el receptor mirando el evento duplicado y descartando por firma. Es decir: la ruta feliz es **síncrona y local**, la cola es solo el salvavidas.\n\n3) **POR QUÉ:** Resuelve el riesgo silencioso de tu diseño: hoy confías en que la cola sobrevive al reinicio, y en 6 meses alguien preguntará \"¿y si el broker cae?\". Al empujar la lógica de aceptación al receptor, eliminas el punto de fallo externo. El coste: **duplicas la memoria del receptor** (guarda el payload en flight, no es barato en picos) y el receptor pasa a cargar la **semántica de aceptación** (\"¿puedo procesar ahora?\"), añadiendo complejidad de código. Pero ganas latencia casi cero en el camino feliz y un sistema que no depende de un componente externo frágil.",
+      "segundos": 100.32,
+      "tokens_gen": 1019,
+      "tokens_prompt": 295,
+      "thinking_tokens": 0
+    },
+    "sabi0": {
+      "texto": "**1) VEREDICTO: APOYO** → opción **A** (cola asíncrona con reintentos).\n\n**2) Tres argumentos técnicos:**\n\n- **Latencia síncrona:** 30 s bloqueando al emisor. Cualquier *call-site* con presupuesto <30 s decae o se satura; la cola desacopla y el *consumer* decide su propio ritmo de procesamiento. 30 s de bloqueo directo es caro.\n\n- **Reinicio del receptor:** en la síncrona la petición en vuelo se pierde (timeout o fallo) porque no hay estado persistido. La cola persiste los mensajes → entrega \"al menos una vez\", cero pérdida de trabajo por caída.\n\n- **Duplicados:** con *idempotency key* + reintentos con *backoff exponencial*, cubres reinicios y reenvíos. Es gratis y resuelve simultáneamente durabilidad y tolerancia a duplicados.\n\n**3) LA CONDICIÓN:** Si el proceso real se acorta por debajo de ~1–2 s **y** es un evento raro sin presupuesto de latencia, la B empezaría a tener sentido. O si necesitas **orden estricto / consistencia fuerte** que la cola no garantiza por sí sola —ahí habría que añadir coordinación (sharding por clave, saga)— antes de abandonar A.",
+      "segundos": 117.02,
+      "tokens_gen": 1296,
+      "tokens_prompt": 285,
+      "thinking_tokens": 0
+    },
+    "sabi3": {
+      "texto": "1) VEREDICTO: RECHAZO. El planteamiento asume certezas de infraestructura y latencia.\n\n2) 3 FALLOS:\n*   **Falso dilema:** La elección binaria A vs B ignora que la verdadera variable es la confiabilidad del receptor, no el método de envío.\n*   **Premisa no probada:** 30 segundos se acepta como rango normal; sin SLOs claros, esto es una esperanza, no una métrica de ingeniería. Ignoramos que un servicio de 30s es lento y requiere colas de espera.\n*   **Causalidad circular:** Se pide \"tolerar duplicados\" sin definir idempotencia; el requisito asume el error de diseño del consumidor.\n\n3) LA PREGUNTA QUE NADIE HACE: ¿Por qué asumimos que el tiempo de respuesta define la arquitectura, cuando la arquitectura debería definir el tiempo de respuesta esperado?",
+      "segundos": 211.27,
+      "tokens_gen": 3829,
+      "tokens_prompt": 461,
+      "thinking_tokens": 0
+    }
+  },
+  "plan": {
+    "texto": "## PLAN — Diseño para servicio interno (30s, tolera duplicados, tolera reinicio del receptor)\n\n**Paso 1 — Recomendación:** Opción **A** (cola asíncrona con reintentos). Justificar por 3 ejes:\n- **Latencia:** 30s no bloquea al emisor; el consumer controla su ritmo.\n- **Durabilidad:** mensajes persistidos → entrega \"al menos una vez\", cero trabajo perdido al reinicio del receptor.\n- **Duplicados:** `idempotency key` + backoff exponencial resuelven reinicios y reenvíos simultáneamente.\n\n**Paso 2 — Dos riesgos/costs:**\n1. **Punto central de fallo:** la cola es ahora la fuente de fiabilidad principal; su degradación (backlog) es invisible hasta ser crítica. *(SABI1 me obliga a citarlo como riesgo nº1, no como apéndice.)*\n2. **Deuda de observabilidad:** monitorizar reintentos, duplicados y dead-letter queue exige cultura de monitoreo que rara vez se construye. *(SABI1.)*\n\n**Paso 3 — Reframing (evitar falso dilema):** la variable real es la **confiabilidad del receptor**, no el método de envío. El plan define idempotencia explícita (SABI3 corrige el \"asumimos\" del objetivo) y precisa que **B** solo cobra sentido si el proceso baja de 1-2s y es evento raro.\n\n**Paso 4 — Mitigación lateral (SABI2):** empujar la **semántica de aceptación al receptor**: ruta feliz local/síncrona, cola como salvavidas. Si el receptor recibe el evento pero no puede ejecutarlo (en reinicio), guarda el payload y reintenta; la deduplicación la decide el receptor por firma. **Coste:** memoria duplicada en el receptor (guarda payload en vuelo).\n\n**Condición de éxito (SABI1):** idempotencia explícita + `dead-letter queue` con alertas proactivas. Sin esto, la asincronía es deuda técnica diferida.\n\nPLAN LISTO",
+    "segundos": 30.88,
+    "tokens_gen": 1310,
+    "tokens_prompt": 1616,
+    "thinking_tokens": 0
+  },
+  "total_segundos": 242.15,
+  "configuration": "default"
+}

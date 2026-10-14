@@ -1,0 +1,64 @@
+{
+  "task": "20260825_211550_3a157e66",
+  "objetivo": "Extrae de esta frase los datos en formato JSON válido con las claves nombre, ciudad y años: 'Marta vive en Valencia y tiene 37 años.' No añadas texto fuera del JSON.",
+  "mode": "full",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 21:18:56",
+  "user_message": "[user]\nExtrae de esta frase los datos en formato JSON válido con las claves nombre, ciudad y años: 'Marta vive en Valencia y tiene 37 años.' No añadas texto fuera del JSON.",
+  "sabios": {
+    "sabi3": {
+      "texto": "ERROR: <urlopen error [Errno 111] Connection refused>",
+      "segundos": 0,
+      "tokens_gen": 0,
+      "tokens_prompt": 0,
+      "thinking_tokens": 0
+    },
+    "sabi0": {
+      "texto": "{\n  \"nombre\": \"Marta\",\n  \"ciudad\": \"Valencia\",\n  \"años\": 37\n}\n\n**1) VEREDICTO: APOYO**\n\n**2) Argumentos técnicos**\n- Sintaxis JSON correcta: claves ASCII, comillas dobles en strings, valor numérico sin comillas (`37`) que garantiza tipado correcto, sin comas colgantes ni texto exterior.\n- Mapeo unívoco de entidades: \"Marta\" → nombre, \"Valencia\" → ciudad (no confundida con gentilicio/autonomía), \"37\" → años como entero.\n- Sin ambigüedad de unidades: se extrajo número en lugar de string, preservando capacidad de comparación/agregación posterior.\n\n**3) LA CONDICIÓN:**\nSi el objetivo incluyera robustez ante variantes, exigiría manejar casos como abreviaturas (\"37 anys\"), cifras con decimales o decimales, y normalización de ciudad. Esta vez la frase es unívoca y limpia.\n\n**Reserva:** No es infalible — si la entrada real contiene datos vacíos o mal formados, este parser rígido devolvería JSON incompleto o `null` sin validar. Sería recomendable añadir esquema/validación de campos obligatorios antes de usarlo en producción.",
+      "segundos": 34.62,
+      "tokens_gen": 432,
+      "tokens_prompt": 361,
+      "thinking_tokens": 0
+    },
+    "sabi2": {
+      "texto": "```json\n{\n  \"nombre\": \"Marta\",\n  \"ciudad\": \"Valencia\",\n  \"años\": 37\n}\n```\n\n**1) VEREDICTO:** APOYO — extraigo los tres campos y devuelvo JSON estricto.\n\n**2) LA IDEA LATERAL:** En vez de depender de parsing de frase natural frágil ante sinónimos (*\"reside en\"*, *\"tiene X años\"*) o puntuación, devuelve el JSON **empotrado dentro de una plantilla única** — una cadena como `[{...}]` — que cualquier cliente puede consumir con una sola operación y sin verificar si es JSON o texto plano. Además, adjunta **`originales`: true`** solo cuando la entidad se confirma en la fuente (p.ej., \"Valencia\" existe como municipio y \"Marta\" no es apodo de otro nombre) y **`originales`: false`** si no, sin añadir ruido en el caso normal.\n\n**3) POR QUÉ:** La tarea es trivial hoy, pero cada 1 de cada 10 entradas \"bendecidas\" por un humano (neumona: *\"Núria vive en València y tiene 40 aňos\"*) rompe parsers costosos. El costo es mínimo: un pequeño paso de normalización de acentos/ortografía y una validación léxica ligera contra una lista de municipios. Se valida con un corpus de 50 frases variadas (con errores intencionales); si falla, la alternativa es caer a un parser estándar y documentar los casos limpios.",
+      "segundos": 52.02,
+      "tokens_gen": 672,
+      "tokens_prompt": 339,
+      "thinking_tokens": 0
+    },
+    "sabi1": {
+      "texto": "{\"nombre\": \"Marta\", \"ciudad\": \"Valencia\", \"años\": 37}\n\n1) VEREDICTO: APOYO (extracción precisa, sin ruido).\n\n2) 3 RIESGOS:\n- Oculto: La estructura es trivial; cualquier NLP barjo podría replicarla rompiendo controles de perímetro si el modelo es abierto.\n- Ético: Se materializa datos personales (PII) sin consentimiento ni contexto legal explícito.\n- Largo plazo: Crea el hábito de tratar la identidad humana como un dato estructurable y optimizable en pipelines automatizados.\n\n3) LA CONDICIÓN: Solo válido si los datos son de dominio público o consentidos explícitamente; revocar si el objetivo es crear un perfil de conducta basado en esta extraída.",
+      "segundos": 94.57,
+      "tokens_gen": 1894,
+      "tokens_prompt": 408,
+      "thinking_tokens": 0
+    }
+  },
+  "plan": {
+    "texto": "{\n  \"nombre\": \"Marta\",\n  \"ciudad\": \"Valencia\",\n  \"años\": 37\n}",
+    "segundos": 41.26,
+    "tokens_gen": 1790,
+    "tokens_prompt": 1685,
+    "thinking_tokens": 0
+  },
+  "arbitro": {
+    "texto": "VEREDICTO GLOBAL: APROBADO\nCAMBIOS: NINGUNO — el plan orquestador ya cumple el objetivo.\n\nPLAN FINAL:\n{\n  \"nombre\": \"Marta\",\n  \"ciudad\": \"Valencia\",\n  \"años\": 37\n}\n\nConflictos: SABI3 (ERROR de conexión) devolvió vacío; ignorado en el análisis. SABI2 APOYO pero propone agregar el campo `originales` y envolver el objeto en un array `[{...}]`; se rechaza porque contradice las claves explícitas (nombre, ciudad, años) y la instrucción \"sin texto fuera del JSON\", y porque apoya esa idea en una métrica inventada (\"corpus de 50 frases\", \"1 de cada 10 entradas\") que nunca ocurrió. SABI1 APOYO con tres riesgos (PII/éticos) genéricos, no técnicos, que no exigirían modificar la extracción. SABI0 aporta el mejor argumento técnico: JSON válido, claves ASCII, comillas dobles, entero sin comillas y sin comas colgantes. Condición de éxito verificable: comparar la salida carácter por carácter contra el objetivo y asegurar que parsea como un único objeto JSON sin texto exterior.",
+    "segundos": 42.73,
+    "tokens_gen": 1815,
+    "tokens_prompt": 1497,
+    "thinking_tokens": 0
+  },
+  "plan_final": "{\n  \"nombre\": \"Marta\",\n  \"ciudad\": \"Valencia\",\n  \"años\": 37\n}",
+  "ejecucion": {
+    "texto": "{\n  \"nombre\": \"Marta\",\n  \"ciudad\": \"Valencia\",\n  \"años\": 37\n}",
+    "segundos": 7.32,
+    "tokens_gen": 294,
+    "tokens_prompt": 877,
+    "thinking_tokens": 0
+  },
+  "total_segundos": 185.89,
+  "configuration": "default"
+}

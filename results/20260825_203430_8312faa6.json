@@ -1,0 +1,50 @@
+{
+  "task": "20260825_203430_8312faa6",
+  "objetivo": "Evalúa esta afirmación: 'Después de cambiar el prompt, el tiempo medio de respuesta bajó de 10 a 8 segundos y los usuarios satisfechos subieron del 60% al 65%; por tanto, el prompt causó la mejora'. Señala al menos dos amenazas a la inferencia causal y propone un experimento A/B que las reduzca.",
+  "mode": "solo",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 20:36:42",
+  "user_message": "[user]\nEvalúa esta afirmación: 'Después de cambiar el prompt, el tiempo medio de respuesta bajó de 10 a 8 segundos y los usuarios satisfechos subieron del 60% al 65%; por tanto, el prompt causó la mejora'. Señala al menos dos amenazas a la inferencia causal y propone un experimento A/B que las reduzca.",
+  "sabios": {
+    "sabi3": {
+      "texto": "ERROR: <urlopen error [Errno 111] Connection refused>",
+      "segundos": 0,
+      "tokens_gen": 0,
+      "tokens_prompt": 0,
+      "thinking_tokens": 0
+    },
+    "sabi1": {
+      "texto": "**1) VEREDICTO:** RESERVAS — La correlación es real pero la causalidad no está probada.\n\n**2) DOS AMENAZAS A LA INFERENCIA CAUSAL:**\n- **Confounding temporal:** 8 segundos otros cambios (infraestructura, caché, tráfico) coincidieron.\n- **Bias de medición:** El aumento de satisfacción puede responder a volumen reducido de usuarios, no solo rapidez.\n\n**3) EXPERIMENTO A/B RECOMENDADO:**\n- Divide tráfico 50/50 asignando aleatoriamente el prompt viejo vs nuevo.\n- Mantén métricas estrictas: latency p50/p95, satisfacción NPS, tasa de abandono antes de respuesta.\n- Minimiza ruido: asegúrate de que ambos grupos operen en similar carga de usuarios y horarios.\n\n**CONDICIÓN:** Solo declarar \"causalidad confirmada\" cuando el lift de 5 puntos persista en ≥3 ventanas de prueba separadas con tráfico equivalente y sin variaciones externas detectables.",
+      "segundos": 30.53,
+      "tokens_gen": 382,
+      "tokens_prompt": 447,
+      "thinking_tokens": 0
+    },
+    "sabi2": {
+      "texto": "**1) VEREDICTO:** RECHAZO parcial — el dato es real, pero la *causalidad* no está establecida. \"El prompt mejoró X\" es una conjetura, no una conclusión.\n\n**2) LA IDEA LATERAL:** No compares \"prompt nuevo vs prompt viejo\". Propón un **experimento A/B triple-armas** que destruya las amenazas de confusión y de regresión a la media:\n- **Arm A (control):** prompt original (10 s, ~60%).\n- **Arm B (tratamiento):** prompt nuevo (hypothesis), aleatorizado por **sesión usuario**, no por hit.\n- **Arm C (sham/timing-only):** prompt nuevo pero sin cambios semánticos relevantes (solo whitespace), para aislar si la mejora es por el *acto de cambiar* o por el *contenido*.\n\n**3) POR QUÉ:** Resuelve dos amenazas: **(i) confusión/autocuidado** — si se cambió prompt *y* simultáneamente infraestructura, caching o routing, no puedes atribuirlo al prompt; la aleatorización por sesión aísla la variable. **(ii) reversión/regresión a la media** — una población en 10 s probablemente era más lenta de lo normal; podría haber caído a 8 s sin tocar nada.\n\n**Validación:** necesitas N suficiente para que Δ=2s sea estadísticamente significativo (p<0.05, poder 0.8). Escucha por el ratio, no solo el tiempo medio (la media oculta cola a la derecha).\n\n**Riesgo principal:** coste computacional de ranurar tráfico y ruido de la cola a la derecha del tiempo.\n\n**Alternativa si falla:** si B no bate a A con solvencia, la mejora probablemente venía de otra capa (infra/caching) → revisa logs de latencia de red y de LLM por separado.",
+      "segundos": 37.45,
+      "tokens_gen": 474,
+      "tokens_prompt": 378,
+      "thinking_tokens": 0
+    },
+    "sabi0": {
+      "texto": "**VEREDICTO: RESERVAS** (correlación ≠ causalidad). Dos puntos suben 5pp con dos variables cambiadas: es la firma estadística de un confusión.\n\n**Argumentos técnicos:**\n1. **Confusión temporal sin control concurrente.** Al cambiar el prompt probablemente también variaron infraestructura, cache, modelo o carga. Sin un grupo de control que corra el estado *antiguo* durante el mismo período, el prompt puede que no sea la variable única.\n2. **Métrica de satisfacción autoinformada, sin N ni CI.** \"Usuarios satisfechos\" con 0 puntos de error es ruido si *n* es pequeño. Un salto de 60→65pp puede ser error estándar; ¿a cuántos usuarios correspondería y cuál es el IC del tratamiento?\n3. **Regression to the mean.** El \"10s\" previo pudo ser un pico transitorio; cualquier intervención lo devuelve a la media y se atribuye falsamente al cambio.\n\n**Experimento A/B (corrige ambos):**\n- **Split de tráfico 50/50 en el edge** (no por usuario → evita *stickiness*). Grupo C = prompt viejo; grupo T = prompt nuevo.\n- **Power analysis**: para detectar +5pp en satisfacción (60→65%) con α=0.05, 80% poder → estima *n*. Repite para latencia (efecto medio, no solo mediana).\n- Mide **p50/p90/p99 de latencia** y satisfacción **con denominador *n***. Reporta intervalos de confianza, no solo medias.\n- Rollback: si p99 sube >20% en T, aborta aunque p50 baje.\n\n**LA CONDICIÓN:** veredicto cambia a APOYO sólo si (a) el IC del efecto excluye 0 y (b) documentas que *no* hubo cambios simultáneos en infra/modelo/carga durante el período.",
+      "segundos": 58.48,
+      "tokens_gen": 1228,
+      "tokens_prompt": 400,
+      "thinking_tokens": 0
+    }
+  },
+  "respuesta_directa": {
+    "texto": "## Evaluación de la afirmación\n\nLa conclusión es **prematura**. Lo que realmente muestra es una **correlación temporal** (medición antes/después), no una causalidad establecida. Para que el prompt sea la causa hay que aislar su efecto del resto de cambios que ocurrieron en la misma ventana y del ruido estadístico. Falta un grupo de control y no se reporta tamaño de muestra ni significancia.\n\n## Amenazas a la inferencia causal\n\n**1. Confundidor temporal / falta de grupo de control.**\nLa comparación es \"antes vs. después en el tiempo\", así que cualquier cambio simultáneo actúa como variable extraña: actualización del modelo, nueva infraestructura, añadido de caché, cambio en el volumen de tráfico, etc. No se puede separar el efecto del prompt de los demás cambios que coincidieron.\n\n**2. Estacionalidad y heterogeneidad de la muestra (efectos temporales + regresión a la media).**\nEl tiempo de respuesta y la satisfacción van según la hora, el día de semana y la carga. Si el \"antes\" se midió en horas punta y el \"después\" en horas valle, la diferencia es **espuria**. Además puede haber **regresión a la media**: si el \"antes\" fue inusualmente malo, el \"después\" tiende a volver a la media sin haber cambiado nada.\n\n**3. Ruido estadístico (refuerzo).**\n5 puntos de satisfacción o 2 segundos pueden ser ruido si la muestra es pequeña o la variabilidad alta. Sin intervalos de confianza o tamaño de muestra, no se puede descartar que el verdadero efecto sea cero.\n\n## Experimento A/B propuesto\n\n**Objetivo:** comparar nuevo vs. antiguo prompt bajo condiciones idénticas para aislar su efecto.\n\n1. **Asignación aleatoria:** los usuarios se reparten al azar entre:\n   - **Grupo A (control):** prompt antiguo.\n   - **Grupo B (tratamiento):** nuevo prompt.\n   La aleatorización distribuye los confundidores (tráfico, temporada, infra) por igual entre grupos en cada instante → resuelve la Amenaza 1.\n\n2. **Ejecución simultánea:** ambos grupos corren a la vez, eliminando los confundidores temporales. Duración mínima de **1–2 semanas completas** para cubrir el ciclo de la semana → resuelve la Amenaza 2.\n\n3. **Métricas y análisis:**\n   - **Tiempo de respuesta (continuo):** comparar medias con prueba *t* (o Mann–Whitney si no es normal) e intervalo de confianza al 95% del diferencial.\n   - **Satisfacción (proporción):** prueba *z* / chi-cuadrada, con diferencia absoluta y relativa + IC.\n   - **Análisis de potencia** antes de lanzar para fijar el tamaño de muestra y evitar falsos negativos (Amenaza 3).\n\n4. **Validación del harness (A/A):** ejecutar primero el mismo prompt en ambos grupos para confirmar que la infraestructura no genera diferencias espurias.\n\n5. **Guardianes (guardrails):** vigilar que no empeoren tasa de error, coste ni latencia en p99; un \"éxito\" en las dos métricas principales no vale si degrada otras.\n\n6. **Cautelas:**\n   - **Efecto de novedad:** la satisfacción puede subir solo por el cambio; descarta con cohorts a lo largo del tiempo.\n   - **Pruebas secuenciales:** si revisas resultados varias veces, usa corrección de alfa (alpha spending) para no inflar el falso positivo.\n   - **Segmentación estratificada** si hay grupos clave (nuevos vs. existentes).\n\n**Criterio de decisión:** solo se podrá afirmar causalidad si B supera a A en ambas métricas con **significancia estadística**, bajo asignación aleatoria y medición simultánea, y sin daños en los guardianes.",
+    "segundos": 74.44,
+    "prompt_tokens": 854,
+    "completion_tokens": 3265,
+    "thinking_tokens": 0,
+    "total_tokens": 4119
+  },
+  "total_segundos": 132.92,
+  "configuration": "default"
+}

@@ -1,0 +1,50 @@
+{
+  "task": "20260825_130137_9682467c",
+  "objetivo": "Compara brevemente dos diseños para un servicio interno: A) una cola asíncrona con reintentos y B) una llamada síncrona directa. Para un proceso que tarda 30 segundos, tolera duplicados y debe seguir funcionando si el receptor se reinicia, recomienda uno y menciona dos riesgos o costes.",
+  "mode": "solo",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 13:05:06",
+  "user_message": "[user]\nCompara brevemente dos diseños para un servicio interno: A) una cola asíncrona con reintentos y B) una llamada síncrona directa. Para un proceso que tarda 30 segundos, tolera duplicados y debe seguir funcionando si el receptor se reinicia, recomienda uno y menciona dos riesgos o costes.",
+  "sabios": {
+    "sabi0": {
+      "texto": "VEREDICTO: APOYO a A) cola asíncrona con reintentos.\n\n**Argumentos técnicos:**\n\n1) **B fallos en el requisito de recuperación.** Una llamada síncrona de 30 s bloquea al emisor hasta respuesta. Si el receptor está caído durante esos 30 s, la llamada aborta (timeout/5xx), violando explícitamente \"debe seguir funcionando si el receptor se reinicia\". A aísla al productor del ciclo de vida del consumer; la cola amortigua el reinicio y reentrega.\n\n2) **Coste de bloqueo lineal.** En B, cada llamada ocupa un hilo/trabajo 30 s ininterrumpidos. Para 100 req/min → ~50 min/hora de CPU/hilo dedicado solo al proceso, saturando rápidamente la capacidad y anulando cualquier picos. En A el consumer escala por separado del emisor.\n\n3) **A justifica su overhead.** Duplicados tolerados = encaja con entrega at-least-once (SQS/RabbitMQ). No necesitas at-most-once ni idempotencia estricta. Un 30 s de latencia ya es asíncrono por definición; el acoplamiento temporal que elimina compensa el coste de infra.\n\n**LA CONDICIÓN:** Si esos 30 s fueran *dentro* del propio consumer y el bottleneck real es el throughput del proceso (no la disponibilidad), y el volumen es bajo (<50 req/min con orden estricta garantizada), entonces reconsiderar B. No recomendaría A si no dispones de operabilidad para colas (monitoreo de backlogs, limpieza de poison messages) — ese es el coste oculto.",
+      "segundos": 120.94,
+      "tokens_gen": 915,
+      "tokens_prompt": 285,
+      "thinking_tokens": 0
+    },
+    "sabi1": {
+      "texto": "1) VEREDICTO: RESERVAS con APOYO a A\n\n2) 3 riesgos:\n- Oculto: La cola oculta el costo real. La latencia se acumula en silencio; durante picos inesperados, el sistema \"suena bien\" mientras se hunden métricas no visibles.\n- Ético: ¿Qué comportamiento humanizamos indirectamente? El síncrono exige perfección inmediata y castiga la falla. El asíncrono enseña tolerancia y adaptación. ¿Qué clase de cultura de resiliencia estamos construyendo?\n- Largo plazo: Acoplamiento implícito. Un servicio síncrono mantiene toda la cadena de suministro frágil; un fallo local paraliza al todo. La autonomía se pierde en favor de la percepción de simplicidad.\n\n3) LA CONDICIÓN: Aceptable solo con capacidad explícita de backpressure, métricas de latencia visibles y un SLA operativo asumido por operaciones. Sin madurez operativa, el síncrono forzará sobredimensionamiento y latencia impredecible que nadie reconocerá hasta que falle.",
+      "segundos": 130.36,
+      "tokens_gen": 979,
+      "tokens_prompt": 311,
+      "thinking_tokens": 0
+    },
+    "sabi2": {
+      "texto": "**1) VEREDICTO:** RESERVAS — recomendaría A) cola asíncrona con reintentos *por defecto*, pero hay una forma de eliminarla.\n\n**2) LA IDEA LATERAL:** Olvídate de la cola. Como el sistema ya **tolera duplicados**, convierte esa misma propiedad en tu infraestructura: \"fire-and-forget\" idempotente. El remitente dispara la petición y devuelve *inmediatamente* (sin esperar los 30s), el receptor deduplica por **clave idempotente** y se **auto-reintenta solo** en un job en bucle con backoff. Ni cola, ni broker, ni ACK del receptor. El receptor se cura solo si se reinicia: al volver, el job en bucle reintenta y el dedupe evita el doble trabajo.\n\n**3) POR QUÉ:**\n- **Resuelve el coste real:** elimina infraestructura de mensajería y su operación; el 30s de latencia nunca bloquea al llamador (se dispara y responde ya).\n- **Viable porque:** la idempotencia *ya existe* (son duplicados tolerados = el cimiento), y un receptor auto-sanado sobrevive reinicios sin cola que lo \"vigile\".\n- **Coste que implica:** pierdes confirmación síncrona. El remitente sabe que *envió*, no que *ejecutó*. Si ese proceso necesita garantía de resultado inmediata, esta locura no aplica — y ahí A) es la respuesta correcta.",
+      "segundos": 136.67,
+      "tokens_gen": 1552,
+      "tokens_prompt": 295,
+      "thinking_tokens": 0
+    },
+    "sabi3": {
+      "texto": "1) VEREDICTO: RESERVAS\n\n2) Fallos Lógicos/Premisas:\n   - Premisa de A: El reintentio no es solución mágica; si el receptor está caído, la cola es solo una lista de espera para errores no gestionados.\n   - Premisa de B: La latencia síncrona no es \"lenta\", es \"falsa\". Bloquea recursos por 30s sin producir throughput.\n   - Falacia compartida: Ambos ignoran que la verdadera variable es la *idempotencia*, no la arquitectura de red.\n\n3) LA PREGUNTA QUE NADIE HACE:\n   \"¿Cuánto pagamos en deuda técnica y complejidad operativa por preferir soluciones 'seguras' como colas sobre la simplicidad de fallar rápido y barato?\"",
+      "segundos": 185.6,
+      "tokens_gen": 2751,
+      "tokens_prompt": 461,
+      "thinking_tokens": 0
+    }
+  },
+  "respuesta_directa": {
+    "texto": "## Comparación de diseños\n\n### A) Cola asíncrona con reintentos\nEl emisor **publica el trabajo** en una cola (RabbitMQ/Redis/Kafka) y obtiene respuesta inmediata; un worker lo consume y lo procesa en segundo plano.\n\n### B) Llamada síncrona directa\nEl emisor **invoca al receptor y espera** la respuesta bloqueándose durante los ~30 s del proceso.\n\n---\n\n## Recomendación: **A) Cola asíncrona con reintentos**\n\nCumple los tres requisitos mejor que la sincrona:\n\n1. **Proceso de 30 s → sin bloquear al emisor.** En sincrón, 30 s superan con creces los timeouts por defecto de frameworks/servidores (HTTP suele dar ~10-30 s, y los proxies/eload balancers cortan antes). En asíncrono el emisor responde al instante con un `task_id` y el trabajo se resuelve en background.\n2. **Tolerar reinicio del receptor → durabilidad.** La cola persiste las mensagens en disco. Si el receptor cae, las tareas quedan en cola y se consumen al volver; en sincrón la conexión se rompe a mitad y hay que reintentar a mano.\n3. **Reintentos seguros por tolerancia a duplicados.** Al ser idempotente el proceso, la entrega *at-least-once* de la cola (reintentos + duplicados) no corrompe el estado.\n\n---\n\n## Dos riesgos / costes\n\n1. **Complejidad operativa.** Requiere un broker, con su alta disponibilidad, monitorización de lag, *dead-letter queues*, y trazabilidad (correlation IDs) cruzando el límite asíncrono. Mayor superficie de fallo y más código de infra que mantener.\n2. **Entrega no garantizada en orden ni exactly-once.** Con *at-least-once* llegan duplicados y el orden puede alterarse; exige manejar idempotencia (clave única, *upserts*) en el receptor, aunque aquí los duplicados ya sean tolerados el coste es bajo.\n\n*(Coste adicional si se exige orden estricto: se degradaría a una cola única con processing serial, perdiendo parte del paralelismo.)*\n\nEJECUCIÓN COMPLETA",
+    "segundos": 23.4,
+    "prompt_tokens": 481,
+    "completion_tokens": 1030,
+    "thinking_tokens": 0,
+    "total_tokens": 1511
+  },
+  "total_segundos": 209.01,
+  "configuration": "default"
+}

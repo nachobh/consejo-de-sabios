@@ -1,0 +1,50 @@
+{
+  "task": "20260825_203227_d2b40c14",
+  "objetivo": "Una migración de base de datos debe añadir una columna obligatoria y cambiar el formato de una respuesta pública. Hay clientes antiguos que seguirán activos durante dos semanas. Detecta la incompatibilidad, propone una estrategia expand-and-contract en fases y define una condición objetiva para retirar la compatibilidad antigua.",
+  "mode": "solo",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 20:34:30",
+  "user_message": "[user]\nUna migración de base de datos debe añadir una columna obligatoria y cambiar el formato de una respuesta pública. Hay clientes antiguos que seguirán activos durante dos semanas. Detecta la incompatibilidad, propone una estrategia expand-and-contract en fases y define una condición objetiva para retirar la compatibilidad antigua.",
+  "sabios": {
+    "sabi3": {
+      "texto": "ERROR: <urlopen error [Errno 111] Connection refused>",
+      "segundos": 0,
+      "tokens_gen": 0,
+      "tokens_prompt": 0,
+      "thinking_tokens": 0
+    },
+    "sabi0": {
+      "texto": "**1) VEREDICTO:** APOYO (condicional)\n\n**2) Tres argumentos técnicos:**\n\n- **Expand phase:** Haz la columna NO NULL primero pero REPLENA (backfill) datos por defecto válidos. El schema final \"cambia\" cuando el formato de respuesta se valida, no cuando obligas a migrar a cero. Reduces el risk a la mitad.\n- **Incompatibilidad real:** No es la ausencia de columna, es el **formato de respuesta**. Mitiga con doble-serialización o versión en header (`X-API-Version`). La detección debe comparar schema DB vs contrato de API, no asumir que coinciden.\n- **Rollback:** El formato de respuesta viejo es el más difícil de deshacer (parsing ambiguo). El campo NO NULL es reversible (vaciar). Prioriza desmantelar primero el de respuestas para reducir la ventana.\n\n**3) LA CONDICIÓN (objetiva):** Retirar compatibilidad antigua cuando la tasa 4xx por campo viejo caiga **< 0,1%** durante 72 h consecutivas Y los logs registren **0** llamadas con `X-API-Version` ≤ v-antigua durante 7 días. Sin esos dos datos, mantén la doble-ruta: una respuesta vieja (read model), una nueva (schema actual).",
+      "segundos": 23.8,
+      "tokens_gen": 328,
+      "tokens_prompt": 380,
+      "thinking_tokens": 0
+    },
+    "sabi2": {
+      "texto": "**1) VEREDICTO:** RESERVAS (apoyo al expand-and-contract, pero la incompatibilidad real es la FORMA, no la migración)\n\n**2) LA IDEA LATERAL:** No uses \"dos semanas con dos formatos\" como puente. Detecta que la **columna nueva** y el **formato nuevo** pueden aliarse a claves existentes: si el formato cambia porque el cliente usa una clave X para datos Y, entrega Y por una clave Z que tú controlas (no por la clave que el cliente público ya usa). Eso elimina el cambio de formato público por completo — el \"formato\" no cambia para el cliente. El trueque: el esfuerzo se mueve del endpoint público (crítico) a una capa de mapeo interno (testable). Si forzaste el formato solo por estética/persistencia, reintrodúcelo con un flag y úsalo como observabilidad, no como contrato. La ventana de compatibilidad deja de medir \"formatos en paralelo\" y empieza a medir \"disponibilidad de la columna en la base\".\n\n**3) POR QUÉ:** Resuelve el verdadero problema (un cliente activo golpeando tu endpoint) sin pagar la deuda del doble-código en la ruta pública. \n- **Primer paso:** mapea cada campo público a su fuente; confirma si el formato nuevo es mapeable a claves ya existentes.\n- **Coste/riesgo:** una capa de mapeo extra y prueba de que no pierdes fidelidad de datos.\n- **Validación:** tests de contrato que comprueben salida idéntica sin el mapeo; canary al 1%.\n- **Alternativa si falla:** caes al expand-and-contract puro, retirando cuando dos condiciones objetivas se cumplen: 0 sesiones nuevas en formato viejo **Y** 7 días sin tráfico en la rama antigua **Y** escaneo automático confirma la rama inalcanzable.",
+      "segundos": 51.31,
+      "tokens_gen": 785,
+      "tokens_prompt": 358,
+      "thinking_tokens": 0
+    },
+    "sabi1": {
+      "texto": "1) VEREDICTO: RESERVAS.\n\n2) Riesgos:\n   - Oculto: Inconsistencia de datos en transacciones concurrentes durante la fase dual-write puede corromper historiales.\n   - Ético: Bloqueo silencioso de clientes que dependen de la estructura antigua sin alerta explícita.\n   - Largo plazo: Fragilidad operativa: cualquier fallo en el script de compatibilidad deja el sistema en estado indeterminado, forzando parches urgentes.\n\n3) LA CONDICIÓN: Implementar un flag de feature-toggling observable por QA con monitoreo en tiempo real. Si la legibilidad de los datos nuevos no alcanza 99.9% en 2 horas, revertir el rollback automático y congelar cambios en la columna crítica hasta resolución.",
+      "segundos": 53.29,
+      "tokens_gen": 737,
+      "tokens_prompt": 427,
+      "thinking_tokens": 0
+    }
+  },
+  "respuesta_directa": {
+    "texto": "# FASE B — Ejecución: migración expand-and-contract\n\n## 1. Detección de la incompatibilidad\n\nHay **dos cambios incompatibles que no pueden aplicarse atómicamente** mientras coexisten clientes nuevos y antiguos, porque atacan caminos distintos:\n\n- **Escritura (schema):** añadir una columna `NOT NULL`. Si se aplica la restricción de golpe, todo INSERT de un cliente antiguo que ignore la columna **falla** → errores y posible pérdida de datos.\n- **Lectura (contrato público):** cambiar el formato de respuesta. Es una **rotura de contrato para el consumidor**: desplegar el formato nuevo de golpe rompe los clientes antiguos que parsean el formato viejo.\n\nEl núcleo del problema: **la columna obligatoria obliga a todos los escritores a enviarla, y el formato nuevo obliga a todos los lectores a aceptarlo.** No se puede dar el salto simultáneo sin romper a alguien. Por eso la migración debe ser por fases: *expandir* (aditivo y compatible) → *rellenar* → *contraer* (aplicar restricción/retirar), con el formato versionado.\n\n## 2. Estrategia en fases\n\n**FASE 0 — Expandir (sin ruptura)**\n\n```sql\n-- Añadir la columna sin restricción (doble compatibilidad)\nALTER TABLE respuestas ADD COLUMN formato_v2 VARCHAR(32) NULL;\n```\n\n- Backfill en **lotes** (job por lotes, no un `ALTER` masivo que bloquee):\n\n```sql\n-- Cada lote:\nUPDATE respuestas SET formato_v2 = 'json_v2'\nWHERE id BETWEEN :y :z AND formato_v2 IS NULL\nLIMIT 5000;\n```\n\n- API: devolver el nuevo formato de forma **aditiva**, manteniendo el campo antiguo:\n\n```jsonc\n{\n  \"datos\": {...},\n  \"formato\": \"v2\",          // NUEVO\n  \"datos_v1\": {...},        // ANTIGUO — se conserva\n  \"deprecated\": [\"datos_v1\"]\n}\n```\n\nLos clientes antiguos no se rompen (siguen leyendo `datos_v1`); los nuevos leen `formato`/nuevos campos.\n\n**FASE 1 — Transición (doble formato activo)**\n\n- Los clientes nuevos migran a su ritmo; los antiguos siguen válidos.\n- Columna ya rellena por el backfill, pero todavía `NULLABLE`.\n- Activar telemetría: qué cliente usa cada columna y cada formato.\n\n**FASE 2 — Contraction (retirar compatibilidad)**\n\nSolo cuando la telemetría lo confirme:\n\n```sql\n-- Aplicar restricción (ahora segura: todo relleno, solo escritores nuevos)\nALTER TABLE respuestas ALTER COLUMN formato_v2 SET NOT NULL;\n\n-- API: eliminar el campo/viejo de la respuesta\n```\n\n## 3. Condición objetiva de retiro\n\nEl tiempo de **2 semanas es un límite superior (deadline), no una condición suficiente**. La condición objetiva es **migración confirmada por telemetría**:\n\n1. **Cero solicitudes** al campo/viejo formato durante una ventana rodante (p. ej. 72 h), con umbral de confianza ≥ 99%.\n2. **100% del inventario** de clientes marcados \"legacy\" en el registro aparecen como migrados.\n3. **Smoke test** al endpoint nuevo pasa y ninguna petición antigua genera `4xx`/`5xx`.\n\n- Si **se cumple** → retirar compatibilidad antigua (campo/viejo + `NULL`).\n- Si **no** → mantener la FASE 1 y extender el periodo.\n\nEJECUCIÓN COMPLETA",
+    "segundos": 69.0,
+    "prompt_tokens": 834,
+    "completion_tokens": 3039,
+    "thinking_tokens": 0,
+    "total_tokens": 3873
+  },
+  "total_segundos": 122.29,
+  "configuration": "default"
+}

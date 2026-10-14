@@ -1,0 +1,49 @@
+{
+  "task": "20260825_111734_e3047ae6",
+  "objetivo": "Revisa este código Python y describe el bug principal y una corrección segura: def total(items):\n    total = 0\n    for item in items:\n        total += item['price'] * item.get('quantity', 1)\n    return total\n\nEl código falla cuando quantity es None o cuando price llega como texto. Propón una versión corregida que valide ambos casos sin ocultar datos inválidos.",
+  "mode": "sabios",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 11:20:32",
+  "user_message": "[user]\nRevisa este código Python y describe el bug principal y una corrección segura: def total(items):\n    total = 0\n    for item in items:\n        total += item['price'] * item.get('quantity', 1)\n    return total\n\nEl código falla cuando quantity es None o cuando price llega como texto. Propón una versión corregida que valide ambos casos sin ocultar datos inválidos.",
+  "sabios": {
+    "sabi1": {
+      "texto": "1) VEREDICTO: RESERVAS\n\n2) 3 RIESGOS:\n- OCULTO: Multiplicar string por número lanza TypeError; .get() devuelve 1 solo si key no existe, no si valor es None\n- ÉTICO: El código \"funciona\" sobre datos corruptos sin alertar a operadores ni registrar inconsistencias\n- LARGO PLAZO: Dependencia de contratos de datos implícitos; cuando items cambien de estructura, el bug reaparece más tarde\n\n3) LA CONDICIÓN:\nSi hay un esquema de validación upstream (Pydantic, TypedDict con runtime checks, o DTOs con cast) que garantice `price: float | int` y `quantity: int | None` antes de llegar aquí, este snippet es aceptable. Sin embargo, la corrección segura mínima:\n\n```python\ndef total(items):\n    total = 0\n    for item in items:\n        price = float(item.get('price'))\n        quantity = item.get('quantity') or 1\n        if quantity is None:\n            raise ValueError(f\"quantity is None for {item}\")\n        total += price * quantity\n    return total\n```",
+      "segundos": 79.08,
+      "tokens_gen": 670,
+      "tokens_prompt": 328,
+      "thinking_tokens": 0
+    },
+    "sabi0": {
+      "texto": "1) VEREDICTO: RESERVAS (código reutilizable, no arreglar por arreglar)\n\n2) Tres argumentos técnicos:\n\n**a) `get('quantity', 1)` no valida `None`.** El `get` solo usa el default cuando la clave *falta*, no cuando está explícitamente como `null`. `item['quantity'] = None` → el `total += X * None` explota en `TypeError` en Python 3. El bug real del usuario (None) pasa por alto aquí.\n\n**b) `price` como texto rompe la aritmética.** `'5.00' * 3 = '5.005.005.005.005.005.005.00'` (cadenas se repiten, no multiplican). En v3 no hay coerción implícita de `str * int`. Sin `float(price)` explícito, un JSON con precio en string colapsa la transacción.\n\n**c) `item['price']` da KeyError, no es graceful.** Faltan dos vías: clave ausente (`item.get('price')`) y datos inválidos no enmascarados. Además, `total = 0` en int fuerza la redondeo implícito al sumar floats.\n\nVersión corregida:\n\n```python\ndef total(items):\n    total = 0.0\n    for item in items:\n        price = item.get('price')\n        quantity = item.get('quantity', 1)\n        if price is None or quantity is None or not isinstance(price, (int, float)):\n            raise ValueError(f\"Falta o es inválido: {item}\")\n        total += float(price) * quantity\n    return total\n```\n\n3) LA CONDICIÓN: Si los datos son **moneda real**, cambia el veredicto — `float` acumulado acumula error (ej. `0.1 + 0.2 ≠ 0.3`, deriva por decenas de dígitos con miles de líneas). Entones exige usar `decimal.Decimal` con cuantización a 2 lugares, no `float`.",
+      "segundos": 99.83,
+      "tokens_gen": 977,
+      "tokens_prompt": 302,
+      "thinking_tokens": 0
+    },
+    "sabi2": {
+      "texto": "1) **VEREDICTO: RESERVAS** — La premisa correcta (no ocultar datos inválidos), pero el código original tiene un bug *real* que nadie está mirando: `item['price']` lanza `KeyError` si falta, y `price * quantity` explota en `TypeError` cuando price es texto (\"10.50\" × 2). El `.get('quantity', 1)` solo resuelve el caso *faltante*, no el `None` explícito.\n\n2) **LA IDEA LATERAL:** Deja de validar en el bucle y **invierte el problema**:\n- Convierte el total a **`Decimal`**, no a `float` (los dinero nunca usaban float — rompe en 0.1+0.2).\n- Devuelve **diagnóstico por fila** (`enumerate`): \"Fila 3: quantity inválida None\", no un error genérico al final.\n- Valida una vez **arriba, en el ingesto** (schema). Así `total()` se convierte en una función matemática pura: `a + b`. El dato sucio muere antes de entrar.\n\n```python\nfrom decimal import Decimal\ndef total(items):\n    from decimal import Decimal as D\n    grand = D(0)\n    for i, item in enumerate(items):\n        q = item.get('quantity', 1)\n        if q is None or not isinstance(q, (int, float)):\n            raise ValueError(f\"Fila {i}: quantity inválida\")\n        grand += D(str(item['price'])) * D(str(q))\n    return grand\n```\n\n3) **POR QUÉ:** Resuelve el fallo silencioso de tipo de dato (float vs texto) y evita el KeyError. Coste: cambias el contrato — el consumidor debe recibir `total()` como objeto `Decimal`, no `float`, y hay que validar arriba en el ETL/ingesta. Es un cambio de mentalidad, no de librerías.",
+      "segundos": 109.77,
+      "tokens_gen": 1191,
+      "tokens_prompt": 312,
+      "thinking_tokens": 0
+    },
+    "sabi3": {
+      "texto": "1) VEREDICTO: RECHAZO.\n\n2) FALLOS LÓGICOS:\n- **Premisa Rota:** \"Validar sin ocultar\" es imposible: casting tipos destruye la trazabilidad del dato original y miente sobre su origen.\n- **Causalidad Falsa:** Asigna que el código debe corregir la suciedad de entrada en lugar de rechazarla o exigir contratos previos.\n- **Enmascaramiento:** `get(..., 1)` no valida la existencia de la clave, solo disfraza la ausencia como un valor válido.\n\n3) LA PREGUNTA QUE NADIE HACE:\n\"Si los datos son basura, ¿es tu código basura o el mundo?\"",
+      "segundos": 132.52,
+      "tokens_gen": 1731,
+      "tokens_prompt": 478,
+      "thinking_tokens": 0
+    }
+  },
+  "plan": {
+    "texto": "PLAN:\n\n**Paso 1 — Diagnóstico del bug principal (triple y silencioso).** El fallo no es uno solo: (a) `item['price']` lanza `KeyError` si falta la clave; (b) si `price` es `str`, `str * int` *repite* la cadena en vez de multiplicar (aritmética corrupta / `TypeError`); (c) `quantity=None` rompe `X * None`. Además `total = 0` (int) redondea floats y no hay trazabilidad. → cubre riesgos de SABI0, SABI1 y SABI2.\n\n**Paso 2 — Corrección base.** Recorrer con `enumerate` para dar diagnóstico por fila, no error genérico. Aquí **SABI3 me obligó a corregir la propuesta de SABI0**: en vez de `raise ValueError(f\"Falta o es inválido: {item}\")`, el error debe incluir **índice de fila + valor original**, porque el casting silencioso miente sobre el origen del dato (principio de SABI3: no ocultar trazabilidad).\n\n**Paso 3 — Validar sin enmascar.** `quantity = 1` solo cuando la clave *falta*; si es explícitamente `None`, lanzar `ValueError` con diagnóstico. → cubre SABI0 y SABI1.\n\n**Paso 4 — Precisión monetaria.** Coaccionar con `Decimal(str(price))` y `Decimal(str(quantity))` para evitar el error de float (`0.1 + 0.2 ≠ 0.3`) en grandes volúmenes. → cubre SABI0 y SABI2.\n\n**Paso 5 — Contrato explícito.** Iniciar con `Decimal(0)` y devolver `Decimal`; documentar que el consumidor recibe `Decimal`, no `float`. → cubre SABI2.\n\n**Paso 6 — Defensa a largo plazo.** Recomendar validación de esquema en ingesta (Pydantic/DTO) como contención temprana, pero dejar la función **autosuficiente** por si el dato sucio entra igual. → cubre SABI1 y SABI3.\n\n**Salida:** versión corregida con (1) diagnóstico por fila con valor original, (2) rechazo explícito de `None`, (3) coerción `Decimal` con trazabilidad, (4) nota de cambio de contrato y recomendación de validación upstream.\n\nPLAN LISTO",
+    "segundos": 45.57,
+    "tokens_gen": 1961,
+    "tokens_prompt": 1858,
+    "thinking_tokens": 0
+  },
+  "total_segundos": 178.09,
+  "configuration": "default"
+}

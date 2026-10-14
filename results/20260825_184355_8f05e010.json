@@ -1,0 +1,50 @@
+{
+  "task": "20260825_184355_8f05e010",
+  "objetivo": "Evalúa esta afirmación: 'Después de cambiar el prompt, el tiempo medio de respuesta bajó de 10 a 8 segundos y los usuarios satisfechos subieron del 60% al 65%; por tanto, el prompt causó la mejora'. Señala al menos dos amenazas a la inferencia causal y propone un experimento A/B que las reduzca.",
+  "mode": "solo",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 18:45:30",
+  "user_message": "[user]\nEvalúa esta afirmación: 'Después de cambiar el prompt, el tiempo medio de respuesta bajó de 10 a 8 segundos y los usuarios satisfechos subieron del 60% al 65%; por tanto, el prompt causó la mejora'. Señala al menos dos amenazas a la inferencia causal y propone un experimento A/B que las reduzca.",
+  "sabios": {
+    "sabi3": {
+      "texto": "ERROR: <urlopen error [Errno 111] Connection refused>",
+      "segundos": 0,
+      "tokens_gen": 0,
+      "tokens_prompt": 0,
+      "thinking_tokens": 0
+    },
+    "sabi0": {
+      "texto": "1) VEREDICTO: RESERVAS\n\n2) Amenazas a la inferencia causal:\n- **Confusión temporal (sin grupo control)**: 10 s→8 s y 60%→65% podrían ser coincidentes con un cambio de infraestructura (nueva versión de modelo, mayor dimensión de GPU, cambio de proveedor), un pico estacional de tráfico, o una actualización de UI. El prompt no es la única variable que cambió en la ventana de observación.\n- **Flecha de causalidad invertida / efecto de tamaño**: el \"tiempo medio de respuesta\" puede estar dominado por la longitud de salida; un prompt que reduce los tokens generados alica la latencia aunque no mejore nada semántico. La mejora de satisfacción podría ser **regresión a la media**, no efecto del prompt.\n- **Medición contaminada**: la satisfacción sube si el instrumento (NPS/CSAT) se aplicó en otra ventana, o si el cambio del prompt altera *cómo* se pregunta. Correlación 5 puntos (60→65) es el tamaño mínimo que hoy se considera marginal y fácilmente atribuible a ruido de muestra.\n\nExperimento A/B que las reduce:\n- **Diseño**: aleatorización por sesión (50/50). Prompo-viejo = control, prompo-nuevo = tratamiento.\n- **Condiciones de limpieza**: tráfico idéntico de infraestructura/modelo durante ambas ramas (controla confusión temporal); misma plantilla de encuesta y mismo momento de evaluación (controla sesgo de medición).\n- **Métrica primaria**: satisfacción *dentro de cada rama* por sesión aleatorizada, no la media global del sistema. Métrica secundaria: tokens/tiempo por rama para aislar el efecto de tamaño.\n- **Umbral de decisión**: aplicar el prompt-nuevo sólo si Δsatisfacción supera el intervalo de confianza al 95% (p<0.05) y la media de latencia del tratamiento es ≤ la del control.\n\n3) LA CONDICIÓN: si en el A/B el grupo control también alcanza 60%→65% sin cambiar de prompt, la causalidad cae.",
+      "segundos": 52.48,
+      "tokens_gen": 736,
+      "tokens_prompt": 400,
+      "thinking_tokens": 0
+    },
+    "sabi1": {
+      "texto": "1) VEREDICTO: RESERVAS\n\n2) Riesgos:\n- Oculto: confusión con variables externas (carga del servidor, cachés, deploys paralelos) que coincidieron con el cambio de prompt.\n- Ético: falsear causalidad para vender una optimización como “solución” cuando la mejora pueda ser transitoria o engañosa.\n- Largo plazo: dependencia cognitiva sobre métricas de superficie (promedio, % satisfacción) que oculten colas de latencia o degradación de calidad para ciertos perfiles de usuario.\n\n3) LA CONDICIÓN: el cambio es aceptable solo si el experimento A/B confirma una diferencia significativa (>2%) en latencia p50 y p95 para el mismo conjunto de peticiones, durante al menos 2 semanas y en tráfico de producción, con tráfico dividido por hashing de ID para evitar selección sesgada. Solo tras ese veredicto se escala.",
+      "segundos": 53.93,
+      "tokens_gen": 552,
+      "tokens_prompt": 447,
+      "thinking_tokens": 0
+    },
+    "sabi2": {
+      "texto": "1) VEREDICTO: RESERVAS\n\n2) LA IDEA LATERAL: **No hagas A/B, haz \"A-B-N\" (Afirmación Basal + Baseline + Nuisance-injection).** Toma un subgrupo que recibió el prompt nuevo (grupo tratado) y dentro de él, inyecta *aleatoriamente* entre todos los usuarios una dosis de **ruido** en el prompt: variaciones sin sentido (inyección de tokens distractores, reordenación, cambios de tono) asignados con probabilidad controlada. Así separas la señal del *prompt* del ruido del *usuario* y del modelo. Además mide la satisfacción con preguntas anónimas de escala (tipo NPS/estrella) para evitar autoselección: los que *sienten* que mejoraron, no solo los que *responden*.\n\n3) POR QUÉ: **Confusión por selección** — quienes \"notaron\" el cambio pudieron ser usuarios ya sensibilizados, y **medición sesgada** — la satisfacción es autoinforme y susceptible a efectos placebo. El coste real del experimento A/B estándar es asumir que el usuario no importa; no es verdad.\n\nPrimer paso: particionar 7 días de tráfico 80/20 (baseline vs nuevo), inyectando ruido en un 30% del grupo nuevo. Validación: si el delta de respuesta/satisfacción persiste a pesar del ruido inyectado, el prompt es causal; si cae al zero, era selección. Riesgo principal: ruido afecta distribución de contenido real. Si falla la hipótesis de ruido, alternativa: experimento factorial completo (prompt × ruido × sesión) con ensayos cruzados dentro del mismo usuario para eliminar la diferencia entre usuarios.",
+      "segundos": 55.18,
+      "tokens_gen": 690,
+      "tokens_prompt": 378,
+      "thinking_tokens": 0
+    }
+  },
+  "respuesta_directa": {
+    "texto": "# Evaluación de la inferencia causal\n\n## Diagnóstico general\n\nLa afirmación comete una **falacia post hoc ergo propter hoc**: solo establece secuencia temporal (cambio → mejora) sin descartar explicaciones alternativas. Los dos indicadores (10→8 s y 60%→65%) son observaciones *before-after* sin grupo de control, por lo que la diferencia puede deberse a factores ajenos al prompt.\n\n## Amenazas a la inferencia causal\n\n**1. Variables confundidoras (confounding).**\nNo se controlan otras variables que cambiaron en el mismo período. Si el despliegue del nuevo prompt coincidió con una ampliación de capacidad de CPU/GPU, un rediseño de infraestructura, una actualización de modelo o un cambio de proveedor, cualquiera de esos factores explicaría por sí sola la caída de 10 a 8 s y el alza de satisfacción. Sin aislar la variable, la mejora no se atribuye con validez al prompt.\n\n**2. Ausencia de grupo de control y regresión a la media.**\nEl diseño es solo *before/after*. Si la línea base (10 s, 60%) se midió en un momento atípico (sobrecarga puntual, carga horaria alta), la siguiente medición tiende a acercarse a la media por estadística pura, no por el cambio. Faltan dos controles mínimos: un grupo que **no** recibe el nuevo prompt, y repetir la medición base para descartar picos espurios.\n\n**3. Efectos temporales no controlados (estacionalidad / Hawthorne / aprendizaje).**\nLas métricas pueden moverse por la hora del día, día de la semana, temporada, o por la adaptación de usuarios y del sistema con el paso del tiempo. Sin bloquear por día/hora o sin grupo paralelo medido en el mismo intervalo, no se descarta que la mejora sea por exposición al entorno, no por el prompt.\n\n**4. Redefinición de la métrica de satisfacción.**\n\"Usuarios satisfechos subieron al 65%\": si se cambió el umbral de la encuesta (por ejemplo, antes contaba 4–5 estrellas y ahora 3–5) o el momento del sondeo, el cambio puede ser artefacto de medición, no de experiencia real.\n\n## Experimento A/B propuesto (para reducir las amenazas)\n\n**Diseño.** Asignación **randomizada** de usuarios nuevos (y luego todos) a dos brazos medido en paralelo durante el mismo intervalo:\n- **Control (A):** prompt original.\n- **Tratamiento (B):** nuevo prompt.\n\nLa randomización equilibra confundidores conocidos y desconocidos entre brazos; medir en paralelo elimina el sesgo de estacionalidad y aprendizaje temporal.\n\n**Métricas.**\n- Principal: tiempo medio de respuesta (latencia p50/p95).\n- Secundaria: CSAT (con **umbral y pregunta fijos**, sin redefinir durante el test).\n- Defensa: tasa de error, retención a 7 días, coste por consulta (detecta trade-offs).\n\n**Tamaño de muestra y poder.** Calcular con power analysis: asumindo efecto del 5% en satisfacción (Δ=0.05, σ≈0.5, poder 0.8, α=0.05, dos colas) se requieren ≈630 usuarios por brazo para detectar la diferencia; para latencia, estimar la desviación estándar real y aplicar lo mismo. Redondear hacia arriba para pérdidas.\n\n**Duración.** Mínimo 2–4 semanas para cubrir variabilidad semanal y estacionalidad; evitar días festivos atípicos o lanzarlos aparte.\n\n**Analisis.** Comparar brazos con test adecuado (test-t o Mann–Whitney para latencia, chi-cuadrado/proporciones para CSAT) e **intervalos de confianza al 95%**. Declarar significancia solo si el IC excluye 0. Pre-registrar hipótesis, métrica principal y regla de parada para evitar *p-hacking*.\n\n**GuardRails.**\n- Verificar que ambos brazos corren sobre la **misma infraestructura** (controla la amenaza #1).\n- Si la randomización a escala es compleja, usar asignación por estratos (región/hora) o *switchback* para no contaminar usuarios entre brazos.\n- Reportar también el **tamaño de efecto real**, no solo p-valor: un 65% vs 65.2% puede ser estadísticamente significativo pero irrelevantemente pequeño.\n\nCon este diseño la mejora se atribuiría al prompt solo si el brazo B supera al A manteniendo todo lo demás constante.\n\nEJECUCIÓN COMPLETA",
+    "segundos": 39.95,
+    "prompt_tokens": 612,
+    "completion_tokens": 1641,
+    "thinking_tokens": 0,
+    "total_tokens": 2253
+  },
+  "total_segundos": 95.14,
+  "configuration": "default"
+}

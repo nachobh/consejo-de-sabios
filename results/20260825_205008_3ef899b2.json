@@ -1,0 +1,49 @@
+{
+  "task": "20260825_205008_3ef899b2",
+  "objetivo": "Una enfermedad afecta al 1% de la población. Una prueba detecta correctamente a un enfermo el 90% de las veces y da positivo por error en el 5% de las personas sanas. Si una persona da positivo, ¿cuál es aproximadamente la probabilidad de que esté enferma? Calcula usando Bayes y advierte sobre la tasa base.",
+  "mode": "sabios",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 20:52:59",
+  "user_message": "[user]\nUna enfermedad afecta al 1% de la población. Una prueba detecta correctamente a un enfermo el 90% de las veces y da positivo por error en el 5% de las personas sanas. Si una persona da positivo, ¿cuál es aproximadamente la probabilidad de que esté enferma? Calcula usando Bayes y advierte sobre la tasa base.",
+  "sabios": {
+    "sabi3": {
+      "texto": "ERROR: <urlopen error [Errno 111] Connection refused>",
+      "segundos": 0,
+      "tokens_gen": 0,
+      "tokens_prompt": 0,
+      "thinking_tokens": 0
+    },
+    "sabi0": {
+      "texto": "## ARTIFACTO — Cálculo de Bayes\n\n**Dato:** Una persona da positivo → P(estar enferma) ≈ **15,4%**\n\n```\nVariables\n  P(E)            = 0,01   (tasa base / prevalencia)\n  P(Pos|E)        = 0,90   (sensibilidad)\n  P(Pos|¬E)       = 0,05   (falsos positivos)\n  P(¬E)           = 0,99\n\nP(Pos) = P(Pos|E)·P(E) + P(Pos|¬E)·P(¬E)\n       = 0,90·0,01 + 0,05·0,99\n       = 0,009 + 0,0495 = 0,0585\n\nP(E|Pos) = 0,009 / 0,0585 = 0,1539 → 15,4%\n```\n\n**Interpretación de casos (por 10.000 personas):** enfermos = 100 → 90 verdaderos positivos; sanos = 9.900 → ~495 falsos positivos. De 585 positivos, solo 90 son reales.\n\n## RESERVAS\n\n1. **La tasa base domina la conclusión.** Un 90% de sensibilidad parece fiable, pero con prevalencia 1% la probabilidad final cae al 15%. Esto es la *base-rate fallacy*: confundir \"positivo si enfermo\" (90%) con \"enfermo si positivo\" (15%).\n2. **Sensibilidad de 90% implica 10% de falsos negativos.** El test **no descarta** enfermedad en el 10% de enfermos. Un positivo es 0,15 probabilidad, no certeza diagnóstica.\n3. **Precisión nominal \"95%\" engaña.** Un producto comercial diría \"95% exactitud\" mezclando sensibilidad + FP. El resultado real (15%) depende del contexto de uso poblacional, no de la precisión aislada.\n\n## LA CONDICIÓN\n\nEl veredicto cambia si la **prevalencia real en la población objetivo sube** (por ejemplo, screening de grupo de riesgo >5%). A prevalencia del 20%, P(E|Pos) ≈ 79%. Con Bayes, la utilidad del test **depende de quién lo aplica**, no de sus parámetros nominales.",
+      "segundos": 72.93,
+      "tokens_gen": 1030,
+      "tokens_prompt": 398,
+      "thinking_tokens": 0
+    },
+    "sabi2": {
+      "texto": "CALCULO: ~15,4%\n\n- 90 verdaderos positivos (0,90 × 100 enfermos)\n- 495 falsos positivos (0,05 × 9.900 sanos)\n- P(Enfermo|D+) = 90 / (90 + 495) = **90/585 ≈ 15,4%**\n\nA pesar de un 90% de precisión, solo 1 de cada 7 positivos reales está enfermo. La tasa base lo domina.\n\n---\n\n**1) VEREDICTO: RESERVAS** (el cálculo es correcto; el aviso sobre la tasa base es la parte esencial)\n\n**2) LA IDEA LATERAL: \"Test escalera + notificación anclada\"**\n\nDeja de usar pruebas de dos estados (positivo/negativo) en enfermedades raras. En su lugar, haz una **verificación por escalera**: tras un positivo inicial, aplica N rondas de confirmación cada vez más exigentes. Cada ronda rebaja el umbral de confianza en los falsos positivos. Paralelamente, no digas \"tu probabilidad es el 15%\". Comunica el resultado anclado a casos reales: *\"de cada 10 como tú, solo 1-2 terminan enfermos\"* y actualízalo en vivo conforme avanza la escalera.\n\n**3) POR QUÉ:**\n\nResuelve **dos fallos reales**: el sesgo de tasa base (el 15% asusta irracionalmente) y la rigidez de un diagnóstico binario. El coste: infraestructura y tiempo extra de la escalera, y dificultad técnica de explicar la actualización bayesiana en tiempo real al paciente.\n\nSi falla la escalera (coste operativo alto), **alternativa**: en patologías raras, sustituye la prueba de detección masiva por un cribado segmentado solo a subpoblaciones de riesgo elevado (p. ej., según edad/familia), donde la tasa base sube y el 15% se convierte en 80%. Menos test, más precisión.",
+      "segundos": 104.25,
+      "tokens_gen": 1359,
+      "tokens_prompt": 376,
+      "thinking_tokens": 0
+    },
+    "sabi1": {
+      "texto": "1) VEREDICTO: RESERVAS.\n\n2) Riesgos:\n*   Oculto: El ruido estadístico (5:1 falsos positivos) colapsará la capacidad operativa, no por enfermedad, sino por exceso de alertas falsas.\n*   Ético: Castigar a la mayoría sana por un error matemático viola el principio de proporcionalidad entre riesgo y daño.\n*   Largo plazo: El gobernante que toma decisiones sin contextualizar la tasa base pierde la credibilidad pública, facilitando el surgimiento de desconfianza futura.\n\n3) LA CONDICI:\nSolo aceptable si el positivo se usa como triaje para *confirmación*, no como sentencia. Si actúas sin segunda validación médica, conviertes incertidumbre en dogma. El control social sobre estadísticas mal entendidas es el primer paso hacia la tiranía ineficiente.",
+      "segundos": 122.43,
+      "tokens_gen": 1863,
+      "tokens_prompt": 445,
+      "thinking_tokens": 0
+    }
+  },
+  "plan": {
+    "texto": "**PLAN — Cálculo de Bayes y tasa base**\n\n**Objetivo:** calcular P(enfermo | positivo) y advertir explícitamente sobre la tasa base.\n\n**Pasos:**\n\n1. **Definir variables** (SABI0):\n   - P(E) = 0,01 (tasa base / prevalencia)\n   - P(Pos|E) = 0,90 (sensibilidad)\n   - P(Pos|¬E) = 0,05 (falsos positivos)\n   - P(¬E) = 0,99\n\n2. **Calcular P(positivo) total** (SABI0):\n   P(Pos) = 0,90·0,01 + 0,05·0,99 = 0,009 + 0,0495 = **0,0585**\n\n3. **Aplicar Bayes** (SABI0, SABI2):\n   P(E|Pos) = 0,009 / 0,0585 = 0,1539 → **≈ 15,4%**\n\n4. **Verificar con casos reales** (SABI2): por 1",
+    "segundos": 48.29,
+    "tokens_gen": 2048,
+    "tokens_prompt": 2128,
+    "thinking_tokens": 0
+  },
+  "total_segundos": 170.73,
+  "configuration": "default"
+}

@@ -1,0 +1,49 @@
+{
+  "task": "20260825_134915_b95a6721",
+  "objetivo": "Diseña pseudocódigo para procesar pagos contra un proveedor HTTP que puede responder 503 y que puede recibir dos veces la misma petición si hay timeout. Incluye backoff exponencial con jitter, máximo de reintentos, una clave de idempotencia y qué errores no deben reintentarse.",
+  "mode": "sabios",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 13:51:41",
+  "user_message": "[user]\nDiseña pseudocódigo para procesar pagos contra un proveedor HTTP que puede responder 503 y que puede recibir dos veces la misma petición si hay timeout. Incluye backoff exponencial con jitter, máximo de reintentos, una clave de idempotencia y qué errores no deben reintentarse.",
+  "sabios": {
+    "sabi3": {
+      "texto": "1) VEREDICTO: RESERVAS\n\n2) 3 fallos lógicos o premisas rotas:\n- Premisa no probada: Asumes que \"timeout\" y \"503\" del proveedor son estados coherentes y repetibles; en la práctica varían según infraestructura subyacente.\n- Falacia de control: Crees que una clave idempotencia \"salva\" la petición porque HTTP, por diseño, no garantiza entrega ni orden; el doble envío puede llegar fuera de secuencia y corromper tu estado local.\n- Causalidad ingenua: Supones que el backoff con jitter resolverá colisiones; no considera que un proveedor sobrecargado puede transformar peticiones válidas en 503 cíclicamente, haciendo el backoff parte del problema.\n\n3) LA PREGUNTA QUE NADIE HACE:\n¿Qué proceso existe para reconciliar una transacción que tu sistema registra como pagada, pero el banco del proveedor la rechaza como \"duplicada\" debido al fallo de tu idempotencia key?",
+      "segundos": 50.32,
+      "tokens_gen": 502,
+      "tokens_prompt": 455,
+      "thinking_tokens": 0
+    },
+    "sabi2": {
+      "texto": "**VEREDICTO: RECHAZO** (al camino obvio de \"solo envía X retries con backoff\")\n\n**LA IDEA LATERAL:** Deja de pensar en el idempotency key como una llave mágica del proveedor. **Invértelo**: úsalo como **deduplicación de cliente con ventana temporal**, y añade un **hash del body de la respuesta** como segunda clave de idempotencia.\n\nConcretamente, pseudocódigo disruptivo:\n\n```\nintentos = 0\nsi has_intentado[key] dentro de ventana(2s): return \"ya lo hiciste\"\n\nsolicito_pago() con X-Idempotency-Key: key\n   si 503:\n      resp = cuerpo_hash\n      cachea(resp) por 2s  ← dedup local, sin esperar reintento\n      key = body_hash XOR key  ← firma secundaria\n      intentos++\n      si intentos < max: backoff_jitter(resp) y repite\n      si intentos >= max: return \"pendiente\"\n   si 200 con X-Idempotency-Key de vuelta: valida que coincida; si no, es una dupe → dedup real\n   si 500/4xx: NO reintentar, rebotar al instante\n```\n\n**POR QUÉ:** El problema real NO es la latencia, es el **doble cobro**. El truco oculto: el proveedor a veces procesa el pago y solo después te devuelve el 503. Retrasar es lo único que salva, pero tu \"salvar\" no puede durar toda la ventana de duplicación o pagas dos veces. La ventana de 2s + firma secundaria te permite descartar dupes **inmediatamente** por tu lado, sin depender de que el proveedor te devuelva su idempotency key en el 503. Coste: una cache de map en memoria (K-V, <1ms) y que no reintentes 500/402/422 — asumir que son errores de negocio, no de infraestructura.",
+      "segundos": 84.69,
+      "tokens_gen": 1081,
+      "tokens_prompt": 289,
+      "thinking_tokens": 0
+    },
+    "sabi1": {
+      "texto": "1) VEREDICTO: RESERVAS\n\n2) 3 riesgos:\n   - (Oculto): Contención de BD por llaves de idempotencia durante picos de fallo, colapsando el sistema central justo cuando es crítico.\n   - (Ético): Externalización de la ineficiencia del proveedor; el usuario final absorbe las consecuencias (duplicación, bloqueos) por la mala arquitectura de quien debería ser robusto.\n   - (Largo plazo): Falsa seguridad. La sobre-optimización de reintentos enmascara fallos sistémicos, permitiendo el \"latido\" de un proveedor moribundo sin intervención humana real.\n\n3) LA CONDICIÓN:\n   Aceptable solo si integras un \"corte automático\" (circuit breaker) que delega la decisión final a tu equipo humano, no al algoritmo, y si los logs de idempotencia son inmutables y auditables para respaldar disputas legales. Sin eso, eres solo un espejo de su mala fe.",
+      "segundos": 109.07,
+      "tokens_gen": 1075,
+      "tokens_prompt": 305,
+      "thinking_tokens": 0
+    },
+    "sabi0": {
+      "texto": "**1) VEREDICTO: APOYO** (con reservas para producción con dinero)\n\nEl diseño es correcto en arquitectura: idempotency key + backoff con jitter + clasificación de errores es la capa estándar. Pero como proceso de pago, tiene tres huecos que no cierran.\n\n**2) Argumentos técnicos**\n\n- **Idempotency key mal ubicada**: el key (nonce + hash de la petición) debe calcularse *antes* del POST, no después de recibir respuesta. Si el proveedor recibe la peticón dos veces, el guardián es el key, no el estado HTTP del worker. Puntuación real: Redis soporta ~100K writes/s, pero el riesgo no es el throughput, es que una key duplicada mal formada genera **doble estado en el ledger** (dinero real), no un 404.\n\n- **Backoff con jitter correcto en fórmula**: `delay = min(cap, base·2^attempt) + uniform(jitter)`. Con base=2s, cap=30s, jitter ±25% (AWS rec.): intentos → 2s, 4s, 8s, 16s, 30s. En 5 reintentos a peor caso suman ~60s de latencia, no 5× el timeout.\n\n- **Error 402/400 NO reintenta**: reintentar una transacción rechazada (código de autorización válido pero negada) **quema el cupo del proveedor y puede generar pérdidas de dinero** por acumulación. Solo 503, timeout y 429 van al backoff; 4xx de negocio van directo a dead letter queue.\n\n**3) LA CONDICIÓN**: Te cambio a RECHAZO si **no especificas dónde se aplica la idempotency key en el lado de la base de datos/ledger del cliente** y si no defines el protocolo cuando el proveedor sigue duplicando tras reintentos agotados (paso a polling de estado, no a reintento infinito). Sin esos dos, el sistema puede cuadruplicar un cobro.",
+      "segundos": 111.55,
+      "tokens_gen": 1328,
+      "tokens_prompt": 279,
+      "thinking_tokens": 0
+    }
+  },
+  "plan": {
+    "texto": "# PLAN — Procesador de pagos idempotente vs proveedor 503\n\n## Objetivo\nPseudocódigo para cobrar a un proveedor que: responde 503, puede recibir el mismo POST 2× (timeout), y exige backoff con jitter, reintentos limitados, clave de idempotencia y clasificación de errores.\n\n## Pasos\n\n**1. Pre-POST: calcular la clave ANTES de enviar.**\n`key = HMAC-SHA256(secret, body) || nonce_uuid`\nRegistrarla en cache local dedup (ventana 2s, K-V <1ms). Si `has_intentado[key]` → devolver resultado cacheado. → Cubre SABI2 (dedup de cliente con ventana) y la reserva de SABI0 (clave mal ubicada).\n\n**2. Envío con `X-Idempotency-Key` + guardián de respuesta.**\nSi el 200 trae su propia `X-Idempotency-Key`, validar que coincida con `key`; si no → dupe detectada, dedup real. → Cubre SABI2.\n\n**3. Clasificación de errores.**\n- Reintentar SOLO: `503`, `timeout`, `429`.\n- No reintentar (→ dead letter queue al instante): `400`, `402`, `422`, `500`.\n→ Cubre SABI0 (402 quema cupo) y SABI2 (500/402 no se reintentan).\n\n**4. Backoff exponencial con jitter.**\n`delay = min(cap=30s, base=2s·2^attempt) + uniform(±25%)`\nMáximo 5 reintentos. → Cubre SABI0.\n\n**5. Ledger con write idempotente (upsert por clave) + log inmutable.**\nGuardar el `body_hash` de la respuesta; el alta en el ledger es `INSERT ... ON CONFLICT (key) DO NOTHING`. Logs inmutables para disputas. → Cubre SABI1 (contección/auditoría) y SABI3 (doble estado en dinero real).\n\n**6. Circuit breaker + escalado humano.**\n tras N fallos consecutivos abrir el breaker: pausar llamadas y devolver `PENDIENTE` para el equipo humano, no decisiones autoalimentadas. → Cubre SABI1 (falsa seguridad) y SABI3 (latido del proveedor).\n\n**7. Protocolo post-reintentos agotados: polling, no reintentos infinitos.**\nSi el proveedor sigue duplicando, pasar a consulta de estado (`GET /payments/{id}`) con reconciliación contra el banco. → Cubre la condición de SABI0 (cuadruplicar cobro) y la pregunta de SABI3 (transacción pagada vs banco \"duplicada\").\n\nPLAN LISTO",
+    "segundos": 34.36,
+    "tokens_gen": 1454,
+    "tokens_prompt": 1901,
+    "thinking_tokens": 0
+  },
+  "total_segundos": 145.91,
+  "configuration": "default"
+}

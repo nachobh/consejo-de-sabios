@@ -1,0 +1,64 @@
+{
+  "task": "20260825_192121_1a1d9722",
+  "objetivo": "Extrae de esta frase los datos en formato JSON válido con las claves nombre, ciudad y años: 'Marta vive en Valencia y tiene 37 años.' No añadas texto fuera del JSON.",
+  "mode": "full",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 19:24:28",
+  "user_message": "[user]\nExtrae de esta frase los datos en formato JSON válido con las claves nombre, ciudad y años: 'Marta vive en Valencia y tiene 37 años.' No añadas texto fuera del JSON.",
+  "sabios": {
+    "sabi3": {
+      "texto": "ERROR: <urlopen error [Errno 111] Connection refused>",
+      "segundos": 0,
+      "tokens_gen": 0,
+      "tokens_prompt": 0,
+      "thinking_tokens": 0
+    },
+    "sabi0": {
+      "texto": "**VEREDICTO:** APOYO\n\n```json\n{\"nombre\": \"Marta\", \"ciudad\": \"Valencia\", \"años\": 37}\n```\n\n**Argumentos técnicos:**\n1. El extractor es **determinista por posición/sintaxis**: verbo (\"vive en\" → ubicación) y numérico post-verbo (\"tiene N años\" → edad). Sin ambigüedad para esta cadena concreta.\n2. **Validación de tipo necesaria**: `años` debe ser entero (`37`, no `\"37\"` string) para ser serializable en consultas/analíticas. Claves cerradas exactamente como pedido.\n3. **Fragilidad de la regex/frase única**: una sola cadena = coste O(n) y riesgo cero. La misma función rompe si \"Marta tiene 37 años y vive en Valencia\" invierte el orden — no hay anclaje de contexto.\n\n**Reservas:** No es \"segura\" como pipeline general: falta manejo de excepciones (frase sin datos → ¿throw o default?), normalización (`Valencia.` con punto), y sin **observabilidad** del parsing no sabrás cuándo un input fuera de patón se procesa incorrectamente en producción.\n\n**CONDICIÓN:** Si ampliamos el corpus y el orden de atributos varía, el veredicto baja a RESERVAS y habrá que añadir parsing por entidad (NER ligero) + rollback a un extractor manual.",
+      "segundos": 36.99,
+      "tokens_gen": 409,
+      "tokens_prompt": 361,
+      "thinking_tokens": 0
+    },
+    "sabi2": {
+      "texto": "**JSON EXTRAÍDO:**\n```json\n{\n  \"nombre\": \"Marta\",\n  \"ciudad\": \"Valencia\",\n  \"años\": 37\n}\n```\n\n**1) VEREDICTO:** APOYO — la extracción es correcta y los tipos de dato están bien (años como número, no string).\n\n**2) LA IDEA LATERAL:** En lugar de devolver solo el JSON \"limpio\", entrega un JSON *autorreflexivo* con un `meta` que declare el grado de confianza por campo y las ambigüedades detectadas:\n\n```json\n{\n  \"nombre\": \"Marta\",\n  \"ciudad\": \"Valencia\",\n  \"años\": 37,\n  \"meta\": {\n    \"confianza\": { \"nombre\": 1.0, \"ciudad\": 1.0, \"años\": 1.0 },\n    \"heuristica\": \"coincidencia por entidad (nombre propio, toponimia, patronimo)\",\n    \"riesgo\": \"valencia puede referirse a Valencia (ES) o Venezuela (VE); falta contexto geográfico\"\n  }\n}\n```\n\n**3) POR QUÉ:** El problema real de las NLP es no saber cuándo *no* se tiene el dato. Al incluir confianza y advertencias, el consumidor del dato puede re-ponderar o pedir confirmación (crítico en datos demográficos o legales). El coste es mayor y el primer paso sería construir un diccionario de toponimia + un grafo de sinonimia (ej.: \"Venezuela\"/\"V.z./Vene.\") antes que entrenar modelos. Si falla, caes al camino obvio: devolver JSON puro sin metadatos, aceptando datos opacos.",
+      "segundos": 46.74,
+      "tokens_gen": 754,
+      "tokens_prompt": 339,
+      "thinking_tokens": 0
+    },
+    "sabi1": {
+      "texto": "```json\n{\n  \"nombre\": \"Marta\",\n  \"ciudad\": \"Valencia\",\n  \"años\": 37\n}\n```\n\n1) VEREDICTO: APOYO CON RESERVAS. La extracción es técnicamente sólida, pero revela más sobre tu dependencia de patrones simples que sobre la utilidad del dato mismo.\n\n2) 3 riesgos:\n- Oculto: Si el input cambia por una coma o sinónimo, tu lógica de \"verdad\" falla silenciosamente, creando puntos ciegos en tu infraestructura.\n- Ético: Tokenizar la biografía personal sin fricción valida que los datos son commodities, no identidad bajo protección.\n- Largo plazo: Dependes de fuentes ambiguas (texto natural) para decisiones duras, no de estructuras verificadas y auditables.\n\n3) LA CONDICIÓN: Válido si este JSON alimenta una transacción o registro donde el error tiene un coste tangible. Si no hay trazabilidad de por qué extraemos \"Marta\", la extracción no es inteligencia, es ruido estructurado.",
+      "segundos": 132.36,
+      "tokens_gen": 2770,
+      "tokens_prompt": 408,
+      "thinking_tokens": 0
+    }
+  },
+  "plan": {
+    "texto": "PLAN:\n\nEl consenso (SABI0, SABI1, SABI2, APOYO) converge en `{\"nombre\":\"Marta\",\"ciudad\":\"Valencia\",\"años\":37}`. Contrastado con el objetivo, **refino** dos puntos:\n\n1. **Claves exactas:** el usuario pide *las claves nombre, ciudad y años*. La idea lateral de SABI2 (añadir `meta` con confianza) se **descarta** para la respuesta final, porque introduce un cuarto campo y contradice la restricción de claves. Se usa solo como nota de robustez futura, no en el artefacto.\n2. **Tipo de dato:** `años` como entero `37` (no string), por coherencia analítica (SABI0).\n\nPasos concretos:\n1. **Nombre:** sujeto/propio inicial → \"Marta\".\n2. **Ciudad:** tras \"vive en\" → \"Valencia\"; **normalizar** quitando el punto final que cierra la frase.\n3. **Años:** numérico tras \"tiene N años\" → entero `37`.\n4. **Construir** el objeto con exactamente esas tres claves.\n5. **Validar:** parsear el resultado como JSON y comprobar que (a) es sintácticamente válido, (b) tiene exactamente `{nombre, ciudad, años}`, (c) `años` es `int`.\n6. **Salida:** emitir solo el JSON, sin comillas de bloque, sin texto previo ni posterior (regla del usuario).\n\nRiesgos cubiertos por paso: normalización del punto (SABI0), tipo entero (SABI0/SABI2), claves exactas vs. propuesta meta (SABI2 descartada), robustez de pipeline/NER no aplicable por ser frase única determinista.\n\nSABI3 devolvió ERROR (conexión) → ignorado, el resto sostiene el veredicto.\n\nPLAN LISTO.",
+    "segundos": 23.55,
+    "tokens_gen": 996,
+    "tokens_prompt": 1561,
+    "thinking_tokens": 0
+  },
+  "arbitro": {
+    "texto": "VEREDICTO GLOBAL: APROBADO\n\nCAMBIOS:\n1. Ninguno sustancial. El orquestador ya **descarta** la idea de SABI2 (`meta`), que añadiría un cuarto campo y violaría la restricción explícita de claves. Se confirma fuera del artefacto.\n2. SABI3 (ERROR) ignorado; el resto del consejo sostiene el veredicto.\n3. SABI1 aporta reservas filosóficas/éticas sin dureza técnica sobre el objetivo (no premiadas).\n\nPLAN FINAL:\nEl plan del orquestador es correcto y suficiente para una frase única determinista. La salida es el artefacto pedido.\n\nResultados clave:\n- **Nombre:** \"Marta\" (propio inicial).\n- **Ciudad:** \"Valencia\" (tras \"vive en\", normalizado sin punto final).\n- **Años:** entero `37` (no string).\n- **Claves:** exactamente `{nombre, ciudad, años}`.\n- **Salida:** solo el JSON, sin comillas de bloque, sin texto previo ni posterior.\n\nVerificación de éxito (condición de rollback):\n- (a) El resultado parsea como JSON válido.\n- (b) Contiene exactamente las tres claves pedidas (no `meta`, no extras).\n- (c) `años` es de tipo entero.\nSi alguno falla, se reemite el JSON corregido hasta pasar las tres comprobaciones.\n\nRestricciones del usuario cubiertas: claves exactas ✓, sin texto externo al JSON ✓, formato JSON válido ✓.\n\nArtefacto final (salida única):\n{\"nombre\":\"Marta\",\"ciudad\":\"Valencia\",\"años\":37}",
+    "segundos": 24.57,
+    "tokens_gen": 989,
+    "tokens_prompt": 1911,
+    "thinking_tokens": 0
+  },
+  "plan_final": "PLAN:\n\nEl consenso (SABI0, SABI1, SABI2, APOYO) converge en `{\"nombre\":\"Marta\",\"ciudad\":\"Valencia\",\"años\":37}`. Contrastado con el objetivo, **refino** dos puntos:\n\n1. **Claves exactas:** el usuario pide *las claves nombre, ciudad y años*. La idea lateral de SABI2 (añadir `meta` con confianza) se **descarta** para la respuesta final, porque introduce un cuarto campo y contradice la restricción de claves. Se usa solo como nota de robustez futura, no en el artefacto.\n2. **Tipo de dato:** `años` como entero `37` (no string), por coherencia analítica (SABI0).\n\nPasos concretos:\n1. **Nombre:** sujeto/propio inicial → \"Marta\".\n2. **Ciudad:** tras \"vive en\" → \"Valencia\"; **normalizar** quitando el punto final que cierra la frase.\n3. **Años:** numérico tras \"tiene N años\" → entero `37`.\n4. **Construir** el objeto con exactamente esas tres claves.\n5. **Validar:** parsear el resultado como JSON y comprobar que (a) es sintácticamente válido, (b) tiene exactamente `{nombre, ciudad, años}`, (c) `años` es `int`.\n6. **Salida:** emitir solo el JSON, sin comillas de bloque, sin texto previo ni posterior (regla del usuario).\n\nRiesgos cubiertos por paso: normalización del punto (SABI0), tipo entero (SABI0/SABI2), claves exactas vs. propuesta meta (SABI2 descartada), robustez de pipeline/NER no aplicable por ser frase única determinista.\n\nSABI3 devolvió ERROR (conexión) → ignorado, el resto sostiene el veredicto.\n\nPLAN LISTO.",
+  "ejecucion": {
+    "texto": "{\"nombre\":\"Marta\",\"ciudad\":\"Valencia\",\"años\":37}",
+    "segundos": 7.26,
+    "tokens_gen": 283,
+    "tokens_prompt": 1030,
+    "thinking_tokens": 0
+  },
+  "total_segundos": 187.74,
+  "configuration": "default"
+}

@@ -1,0 +1,49 @@
+{
+  "task": "20260825_190950_f776c203",
+  "objetivo": "A las 10:00 una API empieza a devolver 20% de errores 500 tras un despliegue. El rollback automático ha fallado, la base de datos está sana y hay clientes afectados. Escribe una respuesta de incidente priorizada en las primeras acciones, incluyendo mitigación, comunicación, recogida de evidencia y prevención de recurrencia.",
+  "mode": "sabios",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 19:12:16",
+  "user_message": "[user]\nA las 10:00 una API empieza a devolver 20% de errores 500 tras un despliegue. El rollback automático ha fallado, la base de datos está sana y hay clientes afectados. Escribe una respuesta de incidente priorizada en las primeras acciones, incluyendo mitigación, comunicación, recogida de evidencia y prevención de recurrencia.",
+  "sabios": {
+    "sabi3": {
+      "texto": "ERROR: <urlopen error [Errno 111] Connection refused>",
+      "segundos": 0,
+      "tokens_gen": 0,
+      "tokens_prompt": 0,
+      "thinking_tokens": 0
+    },
+    "sabi0": {
+      "texto": "## Respuesta de incidente (priorizada)\n\n**0–5 min — Mitigación:**\n- El auto-rollback falló → **rollback manual**: redeployar último build estable conocido y/o desactivar el flag/release vía feature toggle. DB sana ⇒ cero riesgo de pérdida de datos. Si no hay toggle, poner **circuit breaker** en ruta del servicio para aislar el componente.\n- Confirmar en observabilidad: apdex degradado, error 500 ~20% (≈2 errores/mínuto según apdex), p95 latencia subiendo.\n\n**5–15 min — Contención + Evidencia:**\n- Activar war room; asignar owner (SRE). Prioridad por SLA de clientes afectados.\n- Recoger evidencia objetiva: checksum/version desplegada, stack trace de los 500, logs con timestamps, diff del deploy, capacidad del auto-rollback (¿por qué falló?), apdex y trazas distribuidas en la ventana 09:55–10:00.\n\n**15–30 min — Comunicación:**\n- Notificar según SLA: tier oro/platino → comunicación proactiva con causa en conocimiento; demás → update a affected accounts + CS. Corregir info si había commit previo.\n\n**1 h+ — Prevención recurrencia:**\n- Postmortem (sin culpas) en <24h. **Radar a la falla del auto-rollback**: por qué no ejecutó. Validar automatización de rollback como control independiente.\n\n---\n\n### VEREDICTO: APOYO (con reservas)\n\n**Argumentos:**\n1. DB sana + rollback manual = mitigación en <5 min, coste cero y downtime limitable. Prioridad correcta: contener antes que investigar.\n2. La causa raíz **probable es el fallo del auto-rollback**, no la app. Un 500 aislado en 1 build suele ser code/plugin; que el rollback automático no dispare es un defecto de la pipeline, y ahí se pierde 1 deploy de autonomía.\n3. Consume 20% peticiones → afecta SLA (typical breakeven ~5–10% error rate). Sin circuit breaker el daño se propaga por retrés/exponencial backoff.\n\n**LA CONDICIÓN que cambia el veredicto:** si no existe un build estable previo validado para rollback, el \"rollback manual\" se convierte en reconstruir/deploy manual = ventana de 20–60 min; en ese caso la acción real es contener demanda (rate limit / escala) y acelerar, no asumir disponibilidad inmediata.",
+      "segundos": 83.46,
+      "tokens_gen": 1124,
+      "tokens_prompt": 396,
+      "thinking_tokens": 0
+    },
+    "sabi1": {
+      "texto": "**PLAN DE RESPUESTA DE INCIDENTE (PRIORIZADO):**\n\n1. **MITIGACIÓN INMEDIATA (0-10 min):**\n   - Habilitar instancias previas del despliegue en read-only para desviar tráfico.\n   - Activar circuit breaker manual si no hay modo degradado en infraestructura.\n\n2. **COMUNICACIÓN (10-20 min):**\n   - Notificación interna con estados definidos, no promesas de resolución.\n   - A clientes: mensaje breve, sin tecnicismos, con ventana estimada y canal de seguimiento.\n\n3. **RECOPILACIÓN DE EVIDENCIA (20-35 min):**\n   - Logs de API gateway, kube-events, y trace IDs de transacciones fallidas.\n   - Snapshot de configuraciones de rollback antes de modificaciones.\n\n4. **PREVENCIÓN (35-60+ min):**\n   - Implementar \"cherry-pick deployment\" (solo rollback el módulo afectado).\n   - Agregar validación de health checks en pipeline pre-release.\n   - Ejercicio de simulación post-incidente para testear comunicación.\n\n**CONDICIÓN DE CIERRE:** Incidente considerado resuelto cuando la MTTR se documenta, el rollback manual se valida en staging, y la comunicación interna refleja aprendizaje integrado, no solo resolución técnica.",
+      "segundos": 88.67,
+      "tokens_gen": 1066,
+      "tokens_prompt": 443,
+      "thinking_tokens": 0
+    },
+    "sabi2": {
+      "texto": "1) **VEREDICTO:** RESERVAS al plan clásico (rollback automático está caído), pero propongo una palanca lateral.\n\n2) **LA IDEA LATERAL — «Killswitch por flag, no por rollback»:** No repongas el artefacto. Activa un **killswitch vía feature flag**: vuelve a ENCENDER la flag que estaba OFF en el último estado sano. Como las flags son aditivas, restauras el comportamiento viejo *sin reconstruir nada ni tocar la tubería de CI/CD que falló*. Es el giro da Vinci: en vez de \"desinstalar y repartir\", cambias el dial que está al revés. En paralelo, shed de tráfico al último commit bueno.\n\n3) **POR QUÉ:** Resuelve exactamente lo que el plan obvio no puede: da una palanca inversa instantánea que no depende del sistema de deploy roto. Mientras un rollback manual lleva minutos, un flag cambia el estado en segundos.\n\n**Formato utilizable:**\n- **Paso 1:** War room + activar killswitch (revertir flag).\n- **Coste/riesgo:** requiere infra con feature flags + estado sano documentado; overhead de gobernanza de flags.\n- **Validar:** error 500 < 5% en 1–2 min antes de comunicar.\n- **Si falla:** deploy manual one-off del último buen artefact, o shed a instance sana; luego RCA del deploy que rompió el rollback.",
+      "segundos": 98.01,
+      "tokens_gen": 1334,
+      "tokens_prompt": 374,
+      "thinking_tokens": 0
+    }
+  },
+  "plan": {
+    "texto": "## RESPUESTA DE INCIDENTE — PLAN PRIORIZADO\n\n**Supuesto mínimo:** la API usa feature flags y existe un estado sano documentado. Si no, se salta al punto 2.\n\n**0–5 min — Mitigación (contener antes que investigar):**\n- **Palanca principal — Killswitch por flag:** revertir la flag a su estado sano (segundos, sin depender del deploy roto). *Mejora sobre SABI0: el flag es instantáneo y no toca la tubería fallida; el rollback solo es fallback (SABI2).*\n- **Si no hay flag:** rollback manual al último build conocido válido, o **circuit breaker** en la ruta para aislar el componente. DB ⇒⇒⇒ sano ⇒⇒⇒ cero riesgo de pérdida de datos.\n- **Shed de tráfico** al último estado sano.\n- Confirmar en observabilidad: 500 ≈20%, p95 latencia y error/mínuto; validar 500 <5% tras la acción.\n\n**5–15 min — Contención + Evidencia:**\n- Activar war room; **owner SRE**; priorizar por SLA de clientes (oro/platino).\n- Evidencia objetiva: versión/checksum desplegada, stack traces de los 500, logs con timestamps, diff del deploy, trazas distribuidas 09:55–10:00 y **RCA del auto-rollback: ¿por qué no disparó?**\n\n**15–30 min — Comunicación:**\n- Por SLA: oro/platino → notificación proactiva con causa en conocimiento; demás → update a cuentas afectadas + CS. Sin tecnicismos ni promesas de resolución.\n\n**1 h+ — Prevención de recurrencia:**\n- Postmortem sin culpas <24h.\n- Validar el auto-rollback como **control independiente**; añadir **health-checks** en la pipeline pre-release (SABI1).\n- Simulacros de comunicación y rollback; MTTR documentada.\n\n**",
+    "segundos": 48.78,
+    "tokens_gen": 2048,
+    "tokens_prompt": 1857,
+    "thinking_tokens": 0
+  },
+  "total_segundos": 146.8,
+  "configuration": "default"
+}

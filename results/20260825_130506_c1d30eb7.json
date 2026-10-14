@@ -1,0 +1,50 @@
+{
+  "task": "20260825_130506_c1d30eb7",
+  "objetivo": "Redacta un plan de 4 pasos para migrar una API sin tiempo de inactividad. Debe incluir compatibilidad hacia atrás, migración gradual, observabilidad y rollback. Sé concreto y numera los pasos.",
+  "mode": "solo",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 13:07:58",
+  "user_message": "[user]\nRedacta un plan de 4 pasos para migrar una API sin tiempo de inactividad. Debe incluir compatibilidad hacia atrás, migración gradual, observabilidad y rollback. Sé concreto y numera los pasos.",
+  "sabios": {
+    "sabi0": {
+      "texto": "1) VEREDICTO: APOYO (con restricciones)\n\n2) Argumentos:\n- **Compatibilidad hacia atrás**: un *dual-write* o interfaz dual (v1 + v2) cierra coste sólo si el payload no crece >2x. Con compresión gzip activa y DTOs compartidos, el overhead real es ~15-20% de throughput en picos. Si añades autenticación dual (v1 JWT + v2 bearer), el stack de auth se duplica en coste y complejidad sin respaldo de negocio.\n- **Migración gradual**: por ciento de tráfico (feature-flag por header `X-Routing-Target`). Es viable: puedes empezar con el 1% y escalar. El cuello de botella real no es el ratio sino la **sincronización de estado** en operaciones atómicas entre v1/v2 (consistencia eventual → máximo lag tolerable ~2s en reads).\n- **Rollback**: es trivial y rápido **sólo si** v1 sigue servible en paralelo. El rollback tarda <1s con un toggle; pero si v2 ha estado escribiendo en BD y v1 no, el *data drift* exige reconciliación → aquí el verdadero riesgo.\n\n3) LA CONDICIÓN: dime el **esquema de datos y si hay operaciones atómicas distribuidas (writes concurrentes) entre versiones**. Si las escrituras son idempotentes y la DB soporta doble-writer sin bloqueo, el plan cierra. Si requieren consistencia fuerte en escritura, el \"sin downtime\" se vuelve una negociación de latencia de reconciliación, no una promesa de cero.",
+      "segundos": 41.83,
+      "tokens_gen": 413,
+      "tokens_prompt": 261,
+      "thinking_tokens": 0
+    },
+    "sabi2": {
+      "texto": "**1) VEREDICTO:** APOYO (con una condición)\n\n**2) LA IDEA LATERAL:** Deja de \"migrar la API\" y haz que **la API nunca cambie**. Introduce un **sidecar inverso (traductor de contratos)** delante del servicio real: el endpoint, la URL y hasta el contrato público son idénticos durante toda la vida. El sidecar traduce automáticamente lo que recibe en tiempo real hacia la versión nueva (conversión de payloads, mapeo de campos) y traduce de nuevo hacia el usuario cuando vuelve. **No hay dos APIs, hay una sola que \"se viste\" de otra según quién pregunte.** El **rollback es instantáneo**: no reconstruyes nada, solo apuntas el sidecar a revertir la tabla de traducción. Y el cliente **se actualiza solo** al ver un badge en la cabecera de respuesta indicando \"soporte para la nueva versión\" (downgrade suave, sin hard requirements).\n\n**3) POR QUÉ:** Resuelve el verdadero dolor oculto: el tiempo de inactividad nace de tener *dos* sistemas reales y conmutar entre ellos (con riesgo de que la nueva falle). Al eliminar esa dualidad, la \"migración\" deja de ser un evento de semanas y se convierte en un cambio de configuración de segundos. **Coste de la locura:** complejidad en el sidecar y un único punto de fallo crítico (ese proxy) que hay que reforzar con redundancia y monitoreo de latencia de traducción. Pero eso mismo es tu *garantía* de cero downtime.",
+      "segundos": 61.05,
+      "tokens_gen": 689,
+      "tokens_prompt": 271,
+      "thinking_tokens": 0
+    },
+    "sabi3": {
+      "texto": "1) VEREDICTO: RESERVAS\n\n2) 3 fallos lógicos o premisas rotas:\n- \"Sin tiempo de inactividad\" es una premisa falsa (sostenido por el objetivo mismo): toda migración implica o configuración en dualidad o periodo de sincronización. Asume que la dualidad puede mantenerse perfectamente desde el día cero.\n- \"Compatibilidad hacia atrás\" ignora el problema de la corrupción simultánea (sostenido implícito): si ambas APIs escriben al mismo datastore con esquemas distintos, los datos corrompen. Asume coexistencia limpia sin resolver locking o sharding.\n- \"Rollback inmediato\" es hipotético sin presuposición: requiere que el punto de partida sea idénticamente reproducible, lo cual rara vez es. Asume reversibilidad que la práctica refuta.\n\n3) LA PREGUNTA QUE NADIE HACE: Si las dos APIs escriben los mismos datos en windows de despliegue escalonados, ¿cómo garantizas que las llamadas intercaladas durante la ventana de sincronización no legan respuestas inconsistentes al cliente?",
+      "segundos": 62.86,
+      "tokens_gen": 614,
+      "tokens_prompt": 437,
+      "thinking_tokens": 0
+    },
+    "sabi1": {
+      "texto": "1) VEREDICTO: RESERVAS. Prometer cero inactividad es más arte que ingeniería.\n2) RIESGOS:\n- Oculto: El rollback se valida cuando no pasa nada; inevitablemente fallará cuando más importa.\n- Ético: Ciegas el juicio sobre la calidad técnica bajo la bandera de la \"conveniencia del usuario\".\n- Largo plazo: Normaliza la complejidad tóxica como precio de la estabilidad, perdiendo la paz mental del sistema simple.\n3) LA CONDICIÓN: Viable solo bajo control absoluto de una capa de malla de red que permita cortar flujos sin tocar el núcleo, validado por pruebas de caos, no solo unitarias.",
+      "segundos": 143.16,
+      "tokens_gen": 2799,
+      "tokens_prompt": 287,
+      "thinking_tokens": 0
+    }
+  },
+  "respuesta_directa": {
+    "texto": "# FASE B — EJECUCIÓN\n\n## Plan de migración de API sin tiempo de inactividad\n\n**Objetivo:** Migrar una API de una versión (v1, REST sobre framework legacy) a una nueva implementación (v2, nuevo runtime/base de datos) manteniendo disponibilidad 100%, compatibilidad hacia atrás, migración gradual, observabilidad y capacidad de rollback.\n\n### Paso 1 — Establecer compatibilidad hacia atrás (doble escritura y versionado)\n\nAntes de tocar el tráfico, garantizamos que v1 y v2 coexistan:\n\n- **Versionado URI:** toda respuesta/v1 sigue sirviéndose en `/api/v1/...`; v2 se despliega en `/api/v2/...`. Los clientes actuales no se rompen.\n- **Schema compatible:** v2 acepta el mismo payload de entrada que v1 (superset). Añadimos campos nuevos como opcionales (`?string` en OpenAPI) para no exigir cambios al cliente.\n- **Doble escritura (dual-write):** el servicio de escritura escribe en la DB antigua **y** en la nueva simultáneamente, con la DB nueva como \"fuente de verdad\" durante la transición:\n\n```python\nasync def write(payload):\n    await db_v1.save(payload)      # fuente de mantenimiento\n    await db_v2.save(payload)      # fuente de destino (duplicada)\n    # si v2 falla, registramos y reintentamos en cola (no bloqueamos v1)\n```\n\n### Paso 2 — Migración gradual del tráfico (feature flags + canary)\n\n- **Base de datos:** corremos un job de re-lleno histórico en modo *read-only* sobre v2 mientras v1 sigue operando:\n\n```bash\nmigrate --source=postgres_legacy --dest=postgres_new \\\n        --batch=10000 --checkpoint=5s --verify\n```\n\n- **Feature flag** (LaunchDarkly/Unleash) controla el % de tráfico a v2. Se escalona: 1% → 5% → 25% → 100%, con duración mínima de 30-60 min por tramo y comprobación de SLO antes de avanzar.\n- **Leyenda de lectura (read-side switch):** apuntamos la lectura a v2 una vez verificada la consistencia (checksum entre DBs), usando un flag por separado de la escritura.\n\n### Paso 3 — Observabilidad (gate de decisión)\n\nCada tramo de canary publica métricas a un dashboard unificado (Prometheus + Grafana / Datadog). Indicadores y umbrales:\n\n| Métrica | Umbral verde | Acción si se excede |\n|---|---|---|\n| Latencia p95 | < 200 ms | Frenar escalado |\n| Tasa de error 5xx | < 0.5% | Rollback automático |\n| Consistencia DB (v1 vs v2) | 100% | Detener migración |\n| Saturación CPU v2 | < 70% | Frenar escalado |\n\n- **Distributed tracing** (OpenTelemetry) con `service.version=v1|v2` para comparar ambas versiones en paralelo.\n- **Alertas** en PagerDuty que disparan *auto-rollback* al cruzar umbrales rojos.\n\n### Paso 4 — Rollback (plan de regreso)\n\n- **Rollback de tráfico:** revertir el feature flag a v1 (el tráfico vuelve instantáneamente; v1 nunca se apagó):\n\n```bash\nfeature-flags set api_migration.canary=0   # 100% de vuelta a v1\n```\n\n- **Rollback de datos:** como hubo doble escritura, v1 conserva los datos. Si v2 quedó corrupta, limpiamos registros duplicados por `id_migracion`:\n\n```sql\nDELETE FROM v2.tabla WHERE id_migracion = 'mig-2024-06'\n  AND id NOT IN (SELECT id FROM v1.tabla);\n```\n\n- **Corte limpio (post-verificación):** una vez v2 al 100% y estable por ≥7 días, deshabilitamos la double-write, apagamos v1 y archivamos la ruta `/api/v1/` con redirección 301 a `/api/v2/` durante 90 días.\n\n**Riesgos cubiertos:** compatibilidad hacia atrás (P1), divergencia de datos (P1+P2), degradación por nuevas versiones (P3), bloqueo sin recuperación (P4).\n\nEJECUCIÓN COMPLETA",
+    "segundos": 28.14,
+    "prompt_tokens": 457,
+    "completion_tokens": 1252,
+    "thinking_tokens": 0,
+    "total_tokens": 1709
+  },
+  "total_segundos": 171.3,
+  "configuration": "default"
+}

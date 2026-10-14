@@ -1,0 +1,50 @@
+{
+  "task": "20260825_182631_8b5dd5e2",
+  "objetivo": "Extrae de esta frase los datos en formato JSON válido con las claves nombre, ciudad y años: 'Marta vive en Valencia y tiene 37 años.' No añadas texto fuera del JSON.",
+  "mode": "solo",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 18:27:29",
+  "user_message": "[user]\nExtrae de esta frase los datos en formato JSON válido con las claves nombre, ciudad y años: 'Marta vive en Valencia y tiene 37 años.' No añadas texto fuera del JSON.",
+  "sabios": {
+    "sabi3": {
+      "texto": "ERROR: <urlopen error [Errno 111] Connection refused>",
+      "segundos": 0,
+      "tokens_gen": 0,
+      "tokens_prompt": 0,
+      "thinking_tokens": 0
+    },
+    "sabi0": {
+      "texto": "```json\n{\n  \"nombre\": \"Marta\",\n  \"ciudad\": \"Valencia\",\n  \"años\": 37\n}\n```\n\n---\n\n**1) VEREDICTO: APOYO**\n\n**2) Argumentos técnicos concretos:**\n- Los tres datos están presentes y unívocos en la frase: \"Marta\" (sujeto), \"Valencia\" (preposición \"en\") y \"37\" (adjetivo numérico). Sin ambigüedad de tokens.\n- `años` se emite como **número entero (37)**, no string, para permitir cálculos (validación de edad) sin coerción posterior. Si el sistema downstream espera string, habrá que negociar el contrato.\n- Entidades ambiguas resueltas: \"Marta\" no es ciudad/fecha; \"Valencia\" no es nombre; \"37\" no es ciudad. No hay falsos positivos por heurística.\n\n**3) LA CONDICIÓN:**\nCambiaría el veredicto a RECHAZO si la entrada fuera ambigua (ej. \"Juan de Madrid tiene 30 años\" sin preposición de lugar → ciudad indefinida) o si \"años\" apareciera como parte de otra palabra (ej. \"Marta tiene 22 años de experiencia\"). En ese caso, haría falta normalización por PATRONES regulares (regex) en vez de parsing heurístico, y se debería validar que la edad cumpla 18 ≤ años ≤ 120 antes de emitir.",
+      "segundos": 36.18,
+      "tokens_gen": 597,
+      "tokens_prompt": 361,
+      "thinking_tokens": 0
+    },
+    "sabi2": {
+      "texto": "{\"nombre\": \"Marta\", \"ciudad\": \"Valencia\", \"años\": 37}",
+      "segundos": 38.06,
+      "tokens_gen": 394,
+      "tokens_prompt": 339,
+      "thinking_tokens": 0
+    },
+    "sabi1": {
+      "texto": "{\n  \"nombre\": \"Marta\",\n  \"ciudad\": \"Valencia\",\n  \"años\": 37\n}\n\n---\n\n1) VEREDICTO: RESERVAS\n\n2) 3 riesgos:\n- Oculto: La restricción \"no añadas texto fuera\" limita adaptabilidad; si el input cambia de estructura, el pipeline falla en silencio\n- Ético: Ignoramos si los datos contienen información sensible no cubierta por la especificación básica\n- Largo plazo: La dependencia de parsing lineal sin validación crea fragilidad ante variaciones léxicas futuras\n\n3) LA CONDICIÓN: El riesgo es aceptable solo si se asegura un esquema de validación pre-extracción que garantice coherencia sintáctica antes de la fase de parsing, manteniendo la salida JSON pura como contrato de entrega.",
+      "segundos": 42.46,
+      "tokens_gen": 506,
+      "tokens_prompt": 408,
+      "thinking_tokens": 0
+    }
+  },
+  "respuesta_directa": {
+    "texto": "{\"nombre\": \"Marta\", \"ciudad\": \"Valencia\", \"años\": 37}\n\nEJECUCIÓN COMPLETA",
+    "segundos": 15.69,
+    "prompt_tokens": 573,
+    "completion_tokens": 629,
+    "thinking_tokens": 0,
+    "total_tokens": 1202
+  },
+  "total_segundos": 58.15,
+  "configuration": "default"
+}

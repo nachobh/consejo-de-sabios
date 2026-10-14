@@ -1,0 +1,49 @@
+{
+  "task": "20260825_112401_68decc76",
+  "objetivo": "Extrae de esta frase los datos en formato JSON válido con las claves nombre, ciudad y años: 'Marta vive en Valencia y tiene 37 años.' No añadas texto fuera del JSON.",
+  "mode": "sabios",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 11:27:04",
+  "user_message": "[user]\nExtrae de esta frase los datos en formato JSON válido con las claves nombre, ciudad y años: 'Marta vive en Valencia y tiene 37 años.' No añadas texto fuera del JSON.",
+  "sabios": {
+    "sabi2": {
+      "texto": "1) **VEREDICTO:** RESERVAS — la idea central (extraer JSON con IA) es el camino obvio y frágil.\n\n2) **LA IDEA LATERAL:** Da vuelta el problema: **no \"extraigas\" el JSON, haz que el texto se vuelva JSON antes.** Normaliza el input obligatoriamente a plantilla canónica — `\"{nombre} vive en {ciudad} y tiene {años} años\"` — y luego aplica una regla de correspondencia determinista entre plantillas. El \"dato suelto\" en la frase original es el enemigo; elimínalo por fuerza de diseño. Además: no uses un LLM para esto. Usa una **gramática finita (regex + parser ligero)**, porque el dominio es cerrado y finito. Si el 1% de frases no encajan, fallan —y eso es aceptable porque el dataset es acotado, no infinito.\n\n3) **POR QUÉ:** Resuelve tres problemas reales: (a) ** coste de latencia** — un parser pesa ~1ms, un LLM 300–800ms; (b) **coste de dinero** — cero tokens consumidos por operación trivial; (c) **coste de fiabilidad** — cero alucinaciones, salida 100% consistente. El coste es asumir que **el campo de datos es cerrado y predefinido**: si mañana llegan frases imposibles por diseño, hay que reemplazar el mapeo por un sistema con verificación de plantilla (fallar claro, no inventar campos). El beneficio concreto es **determinismo garantizado a coste cercano a cero**.",
+      "segundos": 48.49,
+      "tokens_gen": 516,
+      "tokens_prompt": 266,
+      "thinking_tokens": 0
+    },
+    "sabi0": {
+      "texto": "```json\n{\n  \"nombre\": \"Marta\",\n  \"ciudad\": \"Valencia\",\n  \"años\": 37\n}\n```",
+      "segundos": 59.86,
+      "tokens_gen": 509,
+      "tokens_prompt": 256,
+      "thinking_tokens": 0
+    },
+    "sabi3": {
+      "texto": "1) VEREDICTO: RESERVAS\n\n2) 3 fallos lógicos o premisas rotas:\n   - **Falacia de estructura perfecta:** Quien formula la consigna da por hecho que el lenguaje natural obedece gramática perfecta, ignorando variaciones léxicas o errores tipográficos inevitables.\n   - **Asunción de unicidad semántica:** Asume que \"Marta\" es un nombre único y completo, sin considerar apellidos, títulos o contextos que la identidad JSON no captura.\n   - **Rigidez de validación:** Obliga a \"JSON válido\" sin definir tolerancia a caracteres escapados o Unicode, creando un fallo técnico garantizado en inputs reales.\n\n3) LA PREGUNTA QUE NADIE HACE:\n   \"¿Por qué transformamos una declaración humana en un esquema rígido cuando el lenguaje, por naturaleza, es ambiguo e impreciso por definición?\"",
+      "segundos": 118.24,
+      "tokens_gen": 1528,
+      "tokens_prompt": 432,
+      "thinking_tokens": 0
+    },
+    "sabi1": {
+      "texto": "1) VEREDICTO: RESERVAS\n\n2) Riesgos:\n- Oculto: El dato extraído es estático, pero la realidad que describe es dinámica; confiar ciegamente en esta instantánea te expone a falacias de verdad inmediata.\n- Ético: Reducir a una vida a campos estructurales (\"Marta\", \"37\") entrena una ética utilitarista que ve a las personas como meros registros, no como agentes.\n- Largo plazo: Generas dependencia de un pipeline frágil; la mínima brecha semántica entre lenguaje humano y sintaxis JSON colapsará toda tu base estratégica.\n\n3) LA CONDICIÓN:\nSolo viable si existe un acuerdo explícito de custodia y eliminación de estos datos que limite su vida útil y proteja la privacidad implícita del sujeto analizado.",
+      "segundos": 148.19,
+      "tokens_gen": 2293,
+      "tokens_prompt": 282,
+      "thinking_tokens": 0
+    }
+  },
+  "plan": {
+    "texto": "PLAN:\n\nEl objetivo es una extracción **única y efímera** (sin pipeline, sin almacenamiento), por lo que los riesgos de SABI1 (custodia/privacidad) y SABI3 (variedades léxicas ilimitadas) quedan anulados para este caso concreto: no hay persistencia ni dataset infinito.\n\n1. **Plantilla canónica:** usar el patrón determinista propuesto por SABI2: `^(\\w+)\\s+vive en\\s+(\\S+)\\s+y tiene\\s+(\\d+)\\s+años\\.$`. Sin LLM → cero alucinaciones, coste ~0.\n2. **Coincidencia:** aplicar la regex a la entrada. Si encaja → mapear grupos; si no → fallar claro, no inventar (SABI2).\n3. **Mapeo de campos:** grupo1→`nombre` (Marta), grupo2→`ciudad` (Valencia), grupo3→`años` como **entero** (37), no string.\n4. **Escape/validación JSON:** construir el objeto asegurando escapado correcto de Unicode/caracteres especiales (SABI3), aunque esta entrada no los requiera. Validar con un parser antes de emitir.\n5. **Salida:** imprimir **ÚNICAMENTE** el JSON, sin comillas externas ni texto adicional (cumplimiento literal del objetivo).\n\nSalida esperada (consenso SABI0):\n```json\n{\"nombre\":\"Marta\",\"ciudad\":\"Valencia\",\"años\":37}\n```\n\nPLAN LISTO.",
+    "segundos": 34.4,
+    "tokens_gen": 1493,
+    "tokens_prompt": 1260,
+    "thinking_tokens": 0
+  },
+  "total_segundos": 182.58,
+  "configuration": "default"
+}

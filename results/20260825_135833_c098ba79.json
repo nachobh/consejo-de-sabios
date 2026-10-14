@@ -1,0 +1,49 @@
+{
+  "task": "20260825_135833_c098ba79",
+  "objetivo": "Evalúa esta afirmación: 'Después de cambiar el prompt, el tiempo medio de respuesta bajó de 10 a 8 segundos y los usuarios satisfechos subieron del 60% al 65%; por tanto, el prompt causó la mejora'. Señala al menos dos amenazas a la inferencia causal y propone un experimento A/B que las reduzca.",
+  "mode": "sabios",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 14:01:15",
+  "user_message": "[user]\nEvalúa esta afirmación: 'Después de cambiar el prompt, el tiempo medio de respuesta bajó de 10 a 8 segundos y los usuarios satisfechos subieron del 60% al 65%; por tanto, el prompt causó la mejora'. Señala al menos dos amenazas a la inferencia causal y propone un experimento A/B que las reduzca.",
+  "sabios": {
+    "sabi1": {
+      "texto": "1) VEREDICTO: RESERVAS\n\n2) 3 riesgos:\n- OCULTO: Coincidencia temporal; tráfico, horas pico o cambios de infraestructura pudieron influir.\n- ÉTICO: Opacidad sobre qué versión de prompt se asigna; usuarios no saben qué influye en su experiencia.\n- LARGO PLAZO: Optimización superficial (prompt) mientras la latencia real del backend se degrada; confianza se erosiona al no medir latencia percibida vs. real.\n\n3) LA CONDICIÓN: Solo válido si el experimento A/B es estricto: usuarios aleatorizados en dos grupos idénticos (pico/tráfico/horario), ventanas temporales cortas para descartar regresión, medición por sesión (no global) y grupos de control con prompt original. Sin rigurosidad, es correlación disfrazada de causalidad.",
+      "segundos": 84.35,
+      "tokens_gen": 595,
+      "tokens_prompt": 321,
+      "thinking_tokens": 0
+    },
+    "sabi2": {
+      "texto": "**1) VEREDICTO: RESERVAS**\n\nLa inferencia es frágil. El salto \"el prompt causó la mejora\" exige correlación + control, y aquí solo tienes correlación.\n\n**2) LA IDEA LATERAL: el experimento ablativo \"sin prompt\"**\n\nEn vez de A/B prompt-nuevo vs prompt-antiguo, haz una tercera variable radical: tráfico sobre **cero prompt** (solo el mensaje natural del usuario + instruction minimalista). Además, añade un **holdout** en el prompt-antiguo para que siempre haya un control contra el cual comparar, y mide la satisfacción en **ciego** (el evaluador no sepa qué variante recibió) para matar el sesgo de novedad. Si el \"sin prompt\" iguala al prompt elaborado, todo tu ingeniería de prompts es ruido.\n\n**3) POR QUÉ**\n\nLos dos problemas reales: (a) **no tienes control** — la bajada de latencia y el +5% de satisfacción pueden venir de un cambio de temporada, carga del servidor, otra feature, día de la semana o **regresión a la media** (estabas en un pico previo y caíste naturalmente); y (b) **satisfacción y latencia se mueven juntas** por un **causa común** o sesgo de medición (los usuarios midieron mientras había novedad → Hawthorne). El ablativo + holdout te aísla el efecto neto del prompt de todo el ruido ambiental.\n\nCoste: pierdes satisfacción durante la transición, necesitas más tráfico que ya tenías para abastecer el holdout, y si el prompt-zero gana, habrás descartado una hipótesis que otros asumirían como valiosa.",
+      "segundos": 89.88,
+      "tokens_gen": 1092,
+      "tokens_prompt": 305,
+      "thinking_tokens": 0
+    },
+    "sabi0": {
+      "texto": "**1) VEREDICTO: RECHAZO** — de la afirmación causal. La correlación es plausibly real; la causa no está demostrada.\n\n**2) Tres argumentos técnicos:**\n\n- **Sin grupo control.** Es una comparación *antes-después* sobre toda la población. Cualquier cambio concurrente se sume al prompt: despliegue, cambio de versión del modelo, mejora de infraestructura, estacionalidad del tráfico, aprendizaje de usuarios. La mejora de ~20% en latencia y ~8% en satisfacción no se puede descomponer sin un contrafactual randomizado.\n\n- **El prompt es una variable confusa con la latencia.** La latencia escala con los tokens de entrada. Si el nuevo prompt *creció* en longitud, la latencia debería subir, no bajar 2 s. Si *bajó*, quizás cambió el tamaño de bloque, la versión del modelo o el hardware. No se sabe qué generó la caída real —¿prompt o infra?\n\n- **Sesgo de medición circular.** Si \"usuarios satisfechos\" es *LLM-as-a-judge* (puntuación automática), el mismo prompt que evalúas es el que mide: cambiar el prompt mueve al juez, por lo que el 8% de mejora es endógeno a la modificación. Métrica no independiente.\n\n**3) LA CONDICIÓN:** Un experimento **A/B concurrente** con randomización 50/50 sobre la **misma población y el mismo período**, reportando: (a) versión de infraestructura y modelo en cada brazo, (b) desglose de qué parámetro del prompt cambió, y (c) que la satisfacción la miden **usuarios humanos**, no un juez derivado del prompt. Con eso calculo si el efecto es estadísticamente distinto de cero.",
+      "segundos": 129.84,
+      "tokens_gen": 1488,
+      "tokens_prompt": 295,
+      "thinking_tokens": 0
+    },
+    "sabi3": {
+      "texto": "1) VEREDICTO: RESERVAS\n\n2) FALLOS:\n- *Falacia Post Hoc:* \"Después de X, sucedió Y\" no implica \"X causó Y\". Es correlación disfrazada de causalidad.\n- *Confusión por variables ocultas:* ¿Hubo una optimización de fondo del servidor justo en ese segundo? ¿Cambio en la red o caché no registrado?\n- *Muestro no controlado:* Sin grupo que vea el prompt antiguo bajo condiciones idénticas, no puedes aislar la variable \"prompt\".\n\n3) LA PREGUNTA:\n\"¿La mejora es real, o solo un efecto novedad donde los usuarios recompensan la novedad y la atención del cambio, no la velocidad en sí?\"",
+      "segundos": 129.85,
+      "tokens_gen": 1366,
+      "tokens_prompt": 471,
+      "thinking_tokens": 0
+    }
+  },
+  "plan": {
+    "texto": "**Amenazas a la inferencia causal:**\n\n1. **Variables confusas concurrentes (confounding):** la comparación antes–después evalúa toda la población sin grupo control. Mientras cambiabas el prompt pudieron cambiar versión del modelo, infraestructura, carga del servidor, estacionalidad o aprendizaje de usuarios. *(SABI0, SABI3)*\n\n2. **Sesgo de medición / efecto novedad (Hawthorne):** satisfacción y latencia se midieron con el prompt nuevo. Si \"satisfechos\" es LLM-as-judge derivado del prompt, es endógeno; además los usuarios pueden recompensar la novedad, no la velocidad. *(SABI0, SABI2)*\n\n**Experimento A/B para reducirlas:**\n\n1. **Randomización 50/50** de usuarios sobre la **misma población y mismo período**, asignando prompt-nuevo (A) vs prompt-antiguo (B). → cubre confounding. *(SABI0, SABI1)*\n\n2. **Holdout ciego:** el evaluador no sabe qué variante recibió cada sesión; mide por **sesión**, no global, con ventanas temporales cortas. → cubre efecto novedad. *(SABI2, SABI3)*\n\n3. **Satisfacción medida por usuarios humanos**, no juez derivado del prompt. → cubre endogeneidad. *(SABI0)*\n\n4. **Infra/modelo fijo** en ambos brazos, reportando versión exacta de cada uno → aísla el prompt de cambios de backend. *(SABI1)*\n\n5. **Desglose del cambio del prompt** (qué parámetro varió) y brazo ablativo opcional \"sin prompt\" → confirma que no es ruido. *(SABI0, SABI2)*\n\n**Criterio de decisión:** diferencia estadísticamente distinta de cero (IC 95% / p-valor < 0,05) en latencia media y fracción de usuarios satisfechos entre A y B.\n\nPLAN LISTO",
+    "segundos": 31.97,
+    "tokens_gen": 1367,
+    "tokens_prompt": 1658,
+    "thinking_tokens": 0
+  },
+  "total_segundos": 161.83,
+  "configuration": "default"
+}

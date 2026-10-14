@@ -1,0 +1,49 @@
+{
+  "task": "20260825_113030_5b94aded",
+  "objetivo": "Redacta un plan de 4 pasos para migrar una API sin tiempo de inactividad. Debe incluir compatibilidad hacia atrás, migración gradual, observabilidad y rollback. Sé concreto y numera los pasos.",
+  "mode": "sabios",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 11:34:00",
+  "user_message": "[user]\nRedacta un plan de 4 pasos para migrar una API sin tiempo de inactividad. Debe incluir compatibilidad hacia atrás, migración gradual, observabilidad y rollback. Sé concreto y numera los pasos.",
+  "sabios": {
+    "sabi2": {
+      "texto": "1) **VEREDICTO: RESERVAS con una inyección de adrenalina.** Tu plan (doble despliegue + shift gradual + dual routing + rollback) es correcto pero obvio; lo que nadie te dice es que \"migrar una API\" es el problema equivocado.\n\n2) **LA IDEA LATERAL: Deja de migrar la API. Negocia cada respuesta.** Empaqueta cada respuesta con un pequeño \"envelope\" que indica qué esquema debe parsear el cliente (schema-id + advertencias). El cliente decide, petición por petición, evolucionar al v2 en el instante exacto que su stack lo permita. En vez de mover tráfico 1%…100% con doble despliegue, mueves un **porcentaje por petición**, negociado dinámicamente.\n\n3) **POR QUÉ: elimina los tres dolores de tu plan.** Al no necesitar \"compatibilidad hacia atrás\" como fase, muertes el rollback a v1 (v1 sigue vivo aunque esté vacío; el envelope nunca lo toca). La \"migración gradual\" se convierte en política de cliente, no de infra. Y la observabilidad ahora mide **peticiones que quedaron obsoletas**, no tráfico.\n\n**Coste real:** el envelope añade latencia (~milisegundos) y complejidad de serialización, y obliga a tus clientes a leer ese metadato. **No lo hagas si tienes dependencias de una sola mano** (un monopolio interno). Pero si hay al menos un cliente que tiene prisa en evolucionar, este plan hace la migración indetectable y **cero** en ventana de rollback.",
+      "segundos": 80.86,
+      "tokens_gen": 803,
+      "tokens_prompt": 271,
+      "thinking_tokens": 0
+    },
+    "sabi0": {
+      "texto": "**1) VEREDICTO: RESERVAS** (el patrón es correcto; la viabilidad concreta no).\n\n**2) Argumentos técnicos:**\n\n- **Rollback instantáneo solo si canary es por hash de IP.** Con routing por IP hash, el switch de la ruta dura <30 s y es reversible a un clic. Con **canary por campo** (campos nuevos, no endpoints distintos), el rollback **no es instantáneo**: puedes reescribir, pero los clientes en etapa intermedia ya reciben esquemas mixtos → ventana de convergencia extendida y riesgo de respuestas inconsistentes.\n\n- **La ventana de dual-writing (write-through a ambas) define tu coste, no el diseño.** Debe durar ≥ pico diario + latencia de escritura máxima (fórmula real: `RPO × (1 – SLA) ≈ 10–15 min de burst`). Si la escritura es lenta (Ej. 1s/petición en DB maestra), esa ventana se dispara a horas y **duplicas la infra en cómputo** durante ese tiempo. Ese es tu coste real oculto.\n\n- **La convergencia de esquemas es el punto único de riesgo.** Si endpoints paralelos pero schemas idénticos: switch limpio. Si schemas divergen o la v1 depende de lógica no expuesta: **no existe rollback atómico seguro** y el \"sin downtime\" se rompe por consistencia, no por disponibilidad.\n\n**3) LA CONDICIÓN que decidiría APOYO:** necesito el **diagrama de datos de la API** y, sobre todo, **el SLA de consistencia** (RPO/RTO reales) y el coste de cómputo de la infra dual. Si el schema es unificado y el RPO ≤ 1 min, paso el plan a APOYO. Si dependencias no expuestas en la v1, reescribe como 5 pasos y añade fase de reconciliación.",
+      "segundos": 85.02,
+      "tokens_gen": 1021,
+      "tokens_prompt": 261,
+      "thinking_tokens": 0
+    },
+    "sabi1": {
+      "texto": "1) VEREDICTO: RESERVAS. La promesa de \"sin tiempo de inactividad\" suele servir como cortina de humo para operaciones de alta complejidad con riesgo de colapso asimétrico.\n\n2) Riesgos:\n*   Oculto: El tráfico dividido crea inconsistencias de estado en cachés y bases de datos distribuidas, detectables solo cuando el volumen real multiplica el error inicial.\n*   Ético: Priorizar la continuidad del servicio sobre la integridad de los datos del usuario es una forma sutil de negligencia hacia el beneficiario real del sistema.\n*   Largo Plazo: Creas una dependencia técnica de orquestadores complejos que, al fallar, te dejan sin control directo sobre tu infraestructura crítica (doble captura de valor).\n\n3) LA CONDICIÓN: Solo viable si el \"rollback\" no es teórico: debe ser un script validado en entorno real que restaure la versión anterior en menos de 30 segundos, y con la autoridad para ejecutarse sin escalada gerencial en caso de anomalía. Sin eso, es arrogancia, no ingeniería.",
+      "segundos": 173.19,
+      "tokens_gen": 2068,
+      "tokens_prompt": 287,
+      "thinking_tokens": 0
+    },
+    "sabi3": {
+      "texto": "1) VEREDICTO: RESERVAS CRÍTICAS\n\n2) 3 fallos lógicos o premisas rotas:\n- Premisa \"Sin downtime\": Asume que el tráfico dual es perfectamente distribuido y la latencia es insignificante. ¿Dónde está el presupuesto de SLA para el retraso de milisegundos inevitable en la lectura duplicada?\n- Premisa \"Compatibilidad\": Equivalencia entre \"misma URL\" y \"mismo comportamiento\". Asume que los clientes no rompen parsers en el borde al consumir headers o payloads ligeramente distintos durante el transición.\n- Premisa \"Rollback\": Considera la reversibilidad como un estado binario. Si la nueva infraestructura procesó datos de forma inconsistente antes del corte, revertir el tráfico no resta los efectos en la base de datos.\n\n3) LA PREGUNTA QUE NADIE HACE:\n¿A partir de qué punto dejamos de preguntarnos \"¿qué romperá esto al segundo día?\" y empezamos a asumir que la inactividad cero es una medida de éxito, no un riesgo oculto?",
+      "segundos": 179.25,
+      "tokens_gen": 2132,
+      "tokens_prompt": 437,
+      "thinking_tokens": 0
+    }
+  },
+  "plan": {
+    "texto": "PLAN — Migración de API sin downtime\n\n**Paso 1 — Contrato y compatibilidad hacia atrás.**\nDefine un **esquema unificado de datos** y valida su diagrama (condición de SABI0 para eliminar el punto único de riesgo). Implementa un **envelope opcional** con `schema-id` + advertencias en cada respuesta (idea lateral de SABI2) para que el cliente evolucione por petición. Mantiene v1 vivo y compatible durante todo el proceso.\n\n**Paso 2 — Doble escritura (write-through).**\nEscribe simultáneamente a v1 y v2 durante una **ventana ≥ pico diario + latencia máx de escritura** (fórmula de SABI0: `RPO × (1–SLA)`). Mide el **cómputo dual** como coste real oculto. Verifica **convergencia de schemas** en tiempo real: si divergen, detén y corrige antes de avanzar.\n\n**Paso 3 — Shift gradual con routing por hash de IP.**\nMueve tráfico en canary (1%→100%) usando **IP hash** (decisión de SABI0): el switch dura <30 s y es reversible a un clic, a diferencia del canary por campos que alarga la convergencia. Observabilidad: métricas por ruta, peticiones **obsoletas** (SABI2) e **inconsistencias de caché/DB** detectadas temprano (SABI1).\n\n**Paso 4 — Rollback validado y cutover.**\nMantén un **script de rollback validado en entorno real < 30 s**, ejecutable **sin escalada gerencial** (SABI1). Tráta como no-binario: además de revertir tráfico, **reconcilia los efectos en la base de datos** (SABI3). Aplica cutover final a v2 y apaga v1 solo tras convergencia verificada.\n\nCoberturas: SABI0 (esquema/doble escritura/routing IP), SABI1 (rollback validado y cachés), SABI2 (envelope y observabilidad de obsoletas), SABI3 (rollback no-binario).\n\nPLAN LISTO",
+    "segundos": 31.3,
+    "tokens_gen": 1340,
+    "tokens_prompt": 1751,
+    "thinking_tokens": 0
+  },
+  "total_segundos": 210.55,
+  "configuration": "default"
+}

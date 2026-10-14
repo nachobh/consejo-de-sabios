@@ -1,0 +1,49 @@
+{
+  "task": "20260825_140115_161000ae",
+  "objetivo": "A las 10:00 una API empieza a devolver 20% de errores 500 tras un despliegue. El rollback automático ha fallado, la base de datos está sana y hay clientes afectados. Escribe una respuesta de incidente priorizada en las primeras acciones, incluyendo mitigación, comunicación, recogida de evidencia y prevención de recurrencia.",
+  "mode": "sabios",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 14:04:18",
+  "user_message": "[user]\nA las 10:00 una API empieza a devolver 20% de errores 500 tras un despliegue. El rollback automático ha fallado, la base de datos está sana y hay clientes afectados. Escribe una respuesta de incidente priorizada en las primeras acciones, incluyendo mitigación, comunicación, recogida de evidencia y prevención de recurrencia.",
+  "sabios": {
+    "sabi3": {
+      "texto": "VERDICTO: RESERVAS\n\n1) \"500 errors ≠ 20% de usuarios bloqueados\": Premisa no demostrada que el error rate se correlaciona directamente con impacto business. ¿Una API de logs crítica o un endpoint de salud? Asumir gravedad sin contexto es especulación.\n\n2) \"Rollback automático falló = causa raíz\": Causalidad circular. Atribuir la falla como hecho en lugar de hipótesis. ¿No se validó primero que la aplicación post-deploy era la causante? El rollback puede ser síntoma, no origen.\n\n3) \"Priorizar sin métricas cuantitativas\": El objetivo pide \"priorizada\" pero no define variables de decisión. ¿Tiempo de exposición, número de transacciones fallidas, latencia? Priorizar sin datos es consenso disfrazado de rigor.\n\nLA PREGUNTA QUE NADIE HACE: \"¿Cuántas veces hemos respondido igual a esta 'primera vez'?\" Porque si el sistema es predecible, lo llamamos \"incidente\". Si es impredecible, llamamos \"crisis\". La línea no está en el 20%, está en la gestión de la incertidumbre.",
+      "segundos": 68.55,
+      "tokens_gen": 649,
+      "tokens_prompt": 467,
+      "thinking_tokens": 0
+    },
+    "sabi2": {
+      "texto": "**1) VEREDICTO: RESERVAS** (al rollback automático caído — ahí es donde la creatividad paga)\n\n**2) LA IDEA LATERAL:** Olvida el *rollback de código* (esa es la vía que se te rompió). Haz un **rollback por estado**: reverte tu pipeline GitOps (Flux/Arc) al último commit \"bueno\" y reinstala ese artifact ya existente. Paralelo, activa un **kill switch de feature flag** que desconecte el rollout en vivo — el código roto sigue en registro pero deja de servir a nadie. Y añade un **circuito abierto**: las llamadas que fallen al 500 se rechazan temprano sin tocar el stack base.\n\n**3) POR QUÉ:** Ataca justo el punto débil del camino obvio — el rollback clásico depende de que exista un código/build anterior que el pipeline pueda reconstruir. El GitOps + flags no lo necesita: el estado bueno ya está guardado, así que puedes \"teletransportar\" la versión sana al estado de la infra en minutos, sin reconstruir nada. El circuito abierto compra tiempo mientras investigas el root cause sin que los 20% de errores 500 sigan contaminando datos o saturando recursos.\n\n**Coste real:** el despliegue debe ser GitOps con guardabarras (feature flags + snapshots de config) y los CI/CD deben dejar backups inmutables de cada estado. Si hoy desplegáis de forma manual o sin flags, esta vía no existe: tu única jugada es reinstalar el último artifact bueno y canibalizar carga. **Acción inmediata:** `kubectl rollout undo` si es K8s, activar el flag, comunicar, capturar logs/error-trace de esos 20% afectados — y nunca más un despliegue sin un kill switch en config.",
+      "segundos": 99.85,
+      "tokens_gen": 1043,
+      "tokens_prompt": 301,
+      "thinking_tokens": 0
+    },
+    "sabi1": {
+      "texto": "VEREDICTO: APOYO CONCEJUAL, con la condición de que la transparencia técnica supere la estabilidad de marca.\n\nRIESGOS:\n1) OCULTO: Un rollback fallido revela una automatización sin supervisión humana. No estamos corrigiendo código, sino confiando en un sistema que nos miente sobre su estado.\n2) ÉTICO: La tentación de silenciar el incidente para proteger un KPI nos convierte en custodios de una verdad convenida, priorizando la reputación sobre la realidad operativa.\n3) LARGO PLAZO: La presión por una solución rápida generará deuda técnica sistémica; estamos priorizando la supervivencia inmediata sobre la integridad estructural del software.\n\nLA CONDICIÓN:\nEl riesgo es aceptable solo si el liderazgo técnico tiene autoridad para paralizar el pipeline sin culpa hasta hallar la raíz, y si la métrica de éxito es \"tiempo para entender la verdad\", no \"tiempo para reiniciar el servicio\".",
+      "segundos": 118.72,
+      "tokens_gen": 1218,
+      "tokens_prompt": 317,
+      "thinking_tokens": 0
+    },
+    "sabi0": {
+      "texto": "# RESPUESTA DE INCIDENTE — 500s 20% post-deploy\n\n**SEVERIDAD: ALTA (servicio degradado, no caído).** 20% de errores 500 = peticiones abortadas = violación de SLA probable. Prioridad: contener en minutos, comunicar en paralelo.\n\n## 1. MITIGACIÓN (min 0–15) — primero, antes de diagnosticar\n- **Aislar la versión defectuosa:** detener los pods/instancias del despliegue a las 10:00 (kill/restart a la versión previa). Como el rollback automático falló, se fuerza el revert manual desde el commit/git tag conocido, NO desde la herramienta rota.\n- **Escalón 2 si el bug es localizado:** togglear feature-flag/config para saltar la ruta rota, o circuit-breaker/rate-limit en el endpoint afectado para descargar carga.\n- **Confirmar base de datos sana:** repeticiones de reads health-check; si son lecturas, la contención es código, no datos.\n- **Verificar por qué falló el rollback automático** (timeout, dependency, estado no transaccional) — es la causa raíz operativa.\n\n## 2. COMUNICACIÓN (min 5–20) — en paralelo a la contención\n- Notificar al L2/L3 y actualizar status page en \"investigando\".\n- **Alertar a clientes si SLA se supera** (20% de fallos suele activar penalización; avisar proactivamente).\n- Contener el daño reputacional y contractual.\n\n## 3. RECOPILACIÓN DE EVIDENCIA (en vivo, sin reejecutar el error)\n- Capturar stack traces completos y **código de excepción específico** (no \"500 genérico\").\n- Correlacionar timestamp del deploy (10:00) con arranque de errores.\n- Guardar logs, samples de request que fallan y logs de pod (auto-rastreable).\n- Reproduce el fallo en staging/CI para aislar la causa, sin tocar producción.\n\n## 4. ESTABILIZACIÓN\n- Volver a verificar error-rate → objetivo **0%**. Solo cerrar cuando sea estable, no \"al parecer\".\n\n## 5. PREVENCIÓN (post-mortem, 48h)\n- Root-cause técnico del 500.\n- **Canary (10% tráfico)** antes del rollout total.\n- Gate de CI: integration tests en rutas críticas + alert umbral de error-rate (>5% dispara acción automática).\n- Hardening del auto-rollback para que no dependa de estados manuales.\n\n---\n\n**CONDICIÓN:** Si el 500 es causado por un problema de datos/locking y NO es code (a pesar de DB \"sana\" en superficie), cambio el diagnóstico — entonces no es revert, es purga de caché o migración pendiente. Confírmame el trace exacto antes de escalar.",
+      "segundos": 133.78,
+      "tokens_gen": 1826,
+      "tokens_prompt": 291,
+      "thinking_tokens": 0
+    }
+  },
+  "plan": {
+    "texto": "**PLAN — INCIDENTE 500s 20% post-deploy 10:00**\n\n**SEVERIDAD: ALTA.** PRIMERA DECISIÓN",
+    "segundos": 49.32,
+    "tokens_gen": 2048,
+    "tokens_prompt": 2056,
+    "thinking_tokens": 0
+  },
+  "total_segundos": 183.1,
+  "configuration": "default"
+}

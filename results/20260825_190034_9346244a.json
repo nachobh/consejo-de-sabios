@@ -1,0 +1,49 @@
+{
+  "task": "20260825_190034_9346244a",
+  "objetivo": "Una enfermedad afecta al 1% de la población. Una prueba detecta correctamente a un enfermo el 90% de las veces y da positivo por error en el 5% de las personas sanas. Si una persona da positivo, ¿cuál es aproximadamente la probabilidad de que esté enferma? Calcula usando Bayes y advierte sobre la tasa base.",
+  "mode": "sabios",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 19:02:04",
+  "user_message": "[user]\nUna enfermedad afecta al 1% de la población. Una prueba detecta correctamente a un enfermo el 90% de las veces y da positivo por error en el 5% de las personas sanas. Si una persona da positivo, ¿cuál es aproximadamente la probabilidad de que esté enferma? Calcula usando Bayes y advierte sobre la tasa base.",
+  "sabios": {
+    "sabi3": {
+      "texto": "ERROR: <urlopen error [Errno 111] Connection refused>",
+      "segundos": 0,
+      "tokens_gen": 0,
+      "tokens_prompt": 0,
+      "thinking_tokens": 0
+    },
+    "sabi2": {
+      "texto": "1) **VEREDICTO:** APOYO — y más. La pregunta correcta es *15%, no 90%*. La trampa del 90% es la ilusión de la sensibilidad.\n\n2) **LA IDEA LATERAL:** En lugar de \"creen en el positivo\", hazlo al revés: **cambia la moneda de la prueba**. Calcula y comunica el *Falso Positivo por cada Verdadero Positivo en tu ciudad*. Con tu datos: cada enfermo real que detectas arrastra ~5 sanos marcados (0.99×0.05 / 0.009 ≈ 5.5). Un mensaje tipo *\"Si das positivo, 1 de cada 7 es un vecino sano que entra en cuarentina por error\"* es más digerible que Bayes. Además, reduce el 5% de falsos a menos del 1% bajando la **tasa base efectiva**: añade un segundo test barato (tamizaje en dos pasos). Así el 90% de detección se conserva, pero el ruido se colapsa antes de decidir.\n\n3) **POR QUÉ:** El coste real no es la sensibilidad, es el **daño inflado** que sufren los 99% sanos marcados por el 5%. El primer paso: comunicar 1 de cada 7. Coste/riesgo: riesgo de que el mensaje simplificado se malinterpreta como \"baja fiabilidad\". **Validación:** pide que el usuario calcule el cociente falso/verdadero con los números dados (debería dar ~6). **Alternativa si falla la comunicación:** no recurras al ratio; usa una **tabla de 100.000 personas** (90 enfermos detectados, 4.950 falsos) — la gente no opera en porcentajes pero sí en grupos.",
+      "segundos": 46.61,
+      "tokens_gen": 618,
+      "tokens_prompt": 376,
+      "thinking_tokens": 0
+    },
+    "sabi1": {
+      "texto": "**1) VEREDICTO: RESERVAS**\n\n**2) RIESGOS**\n- Oculto: La intuición de \"90% de precisión\" es explotable en campañas públicas para generar pánico artificial.\n- Ético: El 15.4% de falsos positivos significa que ~85% de personas aisladas/quarentenadas están sanas — ¿quién asume el daño de esa vida rota?\n- Largo plazo: Dependencia de pruebas imperfectas crea sistema de verdad basado en números, no en realidad clínica o contextual.\n\n**3) LA CONDICIÓN**\nEl riesgo es aceptable solo si: a) Los positivos requieren confirmación con prueba de mayor especificidad antes de cualquier restricción; b) Existe compromiso explícito de retesting gratuito y anónimo de falsos positivos; c) Los datos de falsos positivos se reportan transparentemente en todas las comunicaciones públicas.\n\n**Cálculo bayesiano rápido:**\nP(enfermo|positivo) = 0.01×0.90 / (0.01×0.90 + 0.99×0.05) ≈ 15.4%\n\nLa tasa base domina —esta no es falla de prueba, es falla de intuición humana.",
+      "segundos": 49.85,
+      "tokens_gen": 511,
+      "tokens_prompt": 445,
+      "thinking_tokens": 0
+    },
+    "sabi0": {
+      "texto": "**1) VEREDICTO:** APOYO\n\n**2) Tres argumentos técnicos (con cifras):**\n\n**a) Cálculo correcto (regla de Bayes):**\n- P(enferma|+) = [0.90 × 0.01] / [0.90 × 0.01 + 0.05 × 0.99]\n- = 0.009 / 0.0585 = **15,4%**\n\n**b) Verificación por base de 10.000 personas:**\n- 100 enfermos → 90 verdaderos positivos.\n- 9.900 sanos → 495 falsos positivos (5%).\n- Total positivos = 585; 90/585 = **15,4%**. Coherente.\n\n**c) La trampa:** un 90% de sensibilidad *suele* interpretarse erróneamente como \"90% fiable\". En realidad, el valor predictivo positivo depende casi totalmente de la prevalencia, no de la precisión intrínseca del test. Advertencia correcta: **1 de cada 7 positivos es falso.**\n\n**3) LA CONDICIÓN:** El veredicto se mantiene si los números reales del estudio confirman ese FPR del 5% y esa sensibilidad del 90%. Cambiaría a RESERVAS si lo único disponible es la especificidad nombrada y no se valida la precisión real en una cohorte representativa — una prueba no validada en la población objetivo da falsa seguridad clínica.",
+      "segundos": 54.91,
+      "tokens_gen": 860,
+      "tokens_prompt": 398,
+      "thinking_tokens": 0
+    }
+  },
+  "plan": {
+    "texto": "FASE A — PLAN\n\n**Objetivo:** aplicar Bayes para P(enferma|positivo) con prevalencia 1%, sensibilidad 90% y FPR 5%, y advertir sobre la tasa base.\n\n**Pasos:**\n\n1. **Regla de Bayes (cálculo pedido):**\nP(enferma|+) = (0.90 × 0.01) / (0.90 × 0.01 + 0.05 × 0.99) = 0.009 / 0.0585 ≈ **15.4%**.\n\n2. **Verificación por cohorte de 10.000:** 100 enfermos → 90 verdaderos positivos; 9.900 sanos → 495 falsos positivos (5%); total positivos = 585; 90/585 ≈ **15.4%**. Coherente con el paso 1.\n\n3. **Advertencia de tasa base:** el 90% de sensibilidad se confunde con \"90% de fiabilidad\", pero el valor predictivo positivo depende casi entero de la prevalencia (1%). En una población sana el mismo positivo es casi sinónimo de error.\n\n4. **Comunicación del riesgo (contraste con SABI2):** SABI2 propone comunicar un ratio y validar que de \"≈6\", pero el cociente real es 495/90 = **5.5 falsos por cada verdadero** (no 6). Corrijo a 5.5. Equivalentemente, \"1 de cada 7 positivos es falso\".\n\n5. **Adenda condicional (SABI2):** reducir el FPR con segundo test en dos pasos colapsa el ruido, pero *extiende* el objetivo original — el usuario solo pidió el cálculo con los números dados, así que se presenta como complemento, no como sustitución.\n\n**Cobertura:** SABI0 (cálculo) y SABI2 (comunicación) → APOYO; SABI1 (RESERVAS) aporta salvaguarda de confirmación, incorporada como nota. **SABI3 devolvió ERROR (connection refused) → ignorado.** No adopto el consenso sin verificar: el 15.4% se confirma por tres vías independientes.\n\nPLAN LISTO",
+    "segundos": 35.65,
+    "tokens_gen": 1487,
+    "tokens_prompt": 1695,
+    "thinking_tokens": 0
+  },
+  "total_segundos": 90.56,
+  "configuration": "default"
+}

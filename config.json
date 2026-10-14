@@ -1,0 +1,84 @@
+{
+  "num_sabios": 4,
+  "prompt_configuration": "informatico",
+  "runtime": {
+    "num_sabios": 4,
+    "services": {
+      "arbitro": {
+        "model": "ornith-35b",
+        "port": 8205,
+        "context": 262144
+      },
+      "cerebro": {
+        "model": "ornith-35b",
+        "port": 8205,
+        "context": 262144
+      },
+      "orquestador": {
+        "model": "ornith-35b",
+        "port": 8205,
+        "context": 262144
+      },
+      "sabi0": {
+        "model": "ornith-9b",
+        "port": 8201,
+        "context": 131072
+      },
+      "sabi1": {
+        "model": "qwen3.5-9b",
+        "port": 8202,
+        "context": 131072
+      },
+      "sabi2": {
+        "model": "ornith-9b",
+        "port": 8203,
+        "context": 131072
+      },
+      "sabi3": {
+        "model": "qwen3.5-9b",
+        "port": 8204,
+        "context": 131072
+      },
+      "sabi4": {
+        "model": "ornith-9b",
+        "port": 8207,
+        "context": 131072
+      },
+      "sabi5": {
+        "model": "qwen3.5-9b",
+        "port": 8208,
+        "context": 131072
+      },
+      "sabi6": {
+        "model": "ornith-9b",
+        "port": 8209,
+        "context": 131072
+      },
+      "sabi7": {
+        "model": "qwen3.5-9b",
+        "port": 8210,
+        "context": 131072
+      },
+      "sabi8": {
+        "model": "ornith-9b",
+        "port": 8211,
+        "context": 131072
+      },
+      "sabi9": {
+        "model": "qwen3.5-9b",
+        "port": 8212,
+        "context": 131072
+      },
+      "sabi10": {
+        "model": "ornith-9b",
+        "port": 8213,
+        "context": 131072
+      },
+      "sabi11": {
+        "model": "qwen3.5-9b",
+        "port": 8214,
+        "context": 131072
+      }
+    }
+  }
+}

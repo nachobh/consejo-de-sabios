@@ -1,0 +1,64 @@
+{
+  "task": "20260825_191216_e3aae152",
+  "objetivo": "Una tienda aplica primero un descuento del 20% y después un cupón adicional del 10% sobre el precio ya rebajado. Si el precio original es 250 euros, ¿cuál es el precio final y qué descuento equivalente único se ha aplicado? Explica el cálculo brevemente.",
+  "mode": "full",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 19:14:36",
+  "user_message": "[user]\nUna tienda aplica primero un descuento del 20% y después un cupón adicional del 10% sobre el precio ya rebajado. Si el precio original es 250 euros, ¿cuál es el precio final y qué descuento equivalente único se ha aplicado? Explica el cálculo brevemente.",
+  "sabios": {
+    "sabi3": {
+      "texto": "ERROR: <urlopen error [Errno 111] Connection refused>",
+      "segundos": 0,
+      "tokens_gen": 0,
+      "tokens_prompt": 0,
+      "thinking_tokens": 0
+    },
+    "sabi0": {
+      "texto": "1) **VEREDICTO: APOYO**\n\n2) **Argumentos:**\n- Descuento aplicado: 20% sobre 250 € → −50 € → 200 €.\n- Cupón: 10% sobre 200 € (precio rebajado) → −20 € → **180 €**.\n- Precio final: **180 €**. Descuento equivalente único: 250 − 180 = 70 € → **70/250 = 28%**. No es 30% (10%+20%) porque los porcentajes compuestos: **0,9 × 0,8 = 0,72** → **1 − 0,72 = 0,28 = 28%**.\n- Escala: aplica descuento del precio (180 €), no del cupón, salvo que la política restrinja el cupón al precio original.\n\n3) **Condición:** El veredicto depende de una sola restricción del negocio: si el cupón de 10% se aplica estrictamente *sobre el precio rebajado* (escenario normal), 28% es correcto. Solo cambiaría a **10% adicional sobre el precio original** (→ 200 € final, 20% equivalente) si la política prohíbe apilar cupones en una oferta ya rebajada —verifica los términos promocionales antes de responder al usuario.",
+      "segundos": 20.2,
+      "tokens_gen": 342,
+      "tokens_prompt": 385,
+      "thinking_tokens": 0
+    },
+    "sabi2": {
+      "texto": "1) VEREDICTO: **APOYO** (con corrección de cálculo)\n\n2) LA IDEA LATERAL: **Invertir el flujo, no los números.** En lugar de aplicar 20% y luego 10% por pasos, diseñemos la UI alrededor de la *equivalencia única* que YA calculamos: 1 − (0,8 × 0,9) = 1 − 0,72 = **0,28 → descuento único del 28%**. El \"giro\": mostrar al cliente un solo badge **\"−28%\"** (verdadero ahorro real) en vez de los dos pasos engañosos. Lateral aún más radical: ¿y si **eliminamos los cupones por pasos** y vendemos \"1 precio, 0 sorpresas\"? El cupón del 10% aplicado sobre un precio ya rebajado es trampa psicológica (parece \"extra\", pero solo suma al descuento real). El beneficio: menos quejas, mayor transparencia, percepción de honestidad.\n\n3) POR QUÉ: El problema real es la **carga cognitiva y la sensación de estafa**. Cada paso nuevo es una disypación de confianza. Coste: reconstruir backend/etiquetado de precios (riesgo: algunos precios promocionales requieren descuento escalonado genuino). Validación rápida: **A/B testing** — comparar tasa de conversión entre \"20%+10%\" vs \"28% único\". Si el único badge no vende (por exigencias de la marca), alternativa: **explicación visual tipo \"pastel\"** que muestre gráficamente cómo el 28% se construye, sin pasos engañosos.",
+      "segundos": 32.45,
+      "tokens_gen": 403,
+      "tokens_prompt": 363,
+      "thinking_tokens": 0
+    },
+    "sabi1": {
+      "texto": "1) **VEREDICTO:** APOYO\n\n2) **CÁLCULO:**\n   - Precio tras 20%: 250 × 0.80 = 200 €\n   - Precio tras cupón 10%: 200 × 0.90 = 180 €\n   - Descuento total: (250 - 180) / 250 = **28% equivalente único**\n\n3) **RIESGOS/NOTAS:**\n   - *Oculto:* Este efecto compuesto suele confundir a clientes; algunos creen es 30%, no 28%\n   - *Ético:* Exploita la ilusión de \"dos descuentos\" vs uno grande\n   - *Largo plazo:* Si usado agresivamente, erosiona márgenes sin percibirse en el ticket promedio\n\n**CONDICIÓN:** Aceptable como herramienta de marketing si: márgenes >30%, comunicada claramente como \"28% total\" para evitar reclamos, y no se aplica a productos ya en oferta (acumulación no explícita)",
+      "segundos": 35.92,
+      "tokens_gen": 492,
+      "tokens_prompt": 432,
+      "thinking_tokens": 0
+    }
+  },
+  "plan": {
+    "texto": "## FASE A — PLAN\n\n**OBJETIVO:** Calcular precio final y descuento equivalente único de 250 € con −20% y luego −10% sobre el precio rebajado.\n\n**PLAN:**\n\n1. **Descuento 20%:** 250 × 0,80 = **200 €** (baja −50 €). [SABI0 cubre riesgo de escala: aplica al precio, no al cupón.]\n\n2. **Cupón 10% sobre 200 €:** 200 × 0,90 = **180 €** (baja −20 €). [SABI0.]\n\n3. **Precio final: 180 €. [Todos.]**\n\n4. **Descuento equivalente único:** (250 − 180)/250 = 70/250 = **28%**. [SABI0 y SABI1 cubren la trampa del 30%.]\n\n5. **Verificación por compuestos:** 1 − (0,8 × 0,9) = 1 − 0,72 = 0,28 = 28%. Confirma por ruta independiente. [SABI0.]\n\n6. **Explicación breve:** no es 30% (suma aditiva) porque los descuentos son secuenciales sobre base decreciente → efecto compuesto. [SABI0.]\n\n7. **Caveto de negocio (condicional):** si la política aplicara el cupón sobre el *precio original* (no rebajado), el final sería 200 € y el equivalente 20%. Verificar términos antes de dar 28% como definitivo. [SABI0 y SABI1.]\n\n8. **Riesgo percibido (opcional):** el efecto compuesto confunde al cliente, que espera 30%. Comunicar el ahorro real explícitamente para evitar reclamos. [SABI1.]\n\n9. **Mejora UX (lateral SABI2):** mostrar badge único **\"−28%\"** en vez de dos pasos, reduciendo la ilusión de \"dos descuentos\" y la carga cognitiva. No afecta al cálculo, solo a la presentación.\n\n**VEREDICTO:** Precio final **180 €**, descuento equivalente único **28%**. Ignorar SABI3 (ERROR de conexión).\n\nPLAN LISTO",
+    "segundos": 31.29,
+    "tokens_gen": 1314,
+    "tokens_prompt": 1595,
+    "thinking_tokens": 0
+  },
+  "arbitro": {
+    "texto": "VEREDICTO GLOBAL: APROBADO CON CAMBIOS\n\nCAMBIOS:\n1. **Eliminar el lateral de SABI2** (rediseñar UI, mostrar badge \"−28%\", eliminar cupones): fuera de alcance. El objetivo es explicar el cálculo, no rediseñar el modelo de negocio. Su argumento sobre carga cognitiva se conserva como nota breve.\n2. **Confirmar la condición de SABI0**: el enunciado dice explícitamente \"sobre el precio ya rebajado\", así que 28% es definitivo. La nota del 20% queda solo como verificación de términos promocionales.\n3. **(SABI3 ignorado: ERROR de conexión).**\n\nPLAN FINAL:\n**Cálculo (descuentos secuenciales, base decreciente):**\n1. −20%: 250 × 0,80 = **200 €**.\n2. −10% sobre 200 €: 200 × 0,90 = **180 €** (precio final).\n3. Ahorro total: 250 − 180 = **70 €**.\n\n**Descuento equivalente único:** (70/250) × 100 = **28%**.\n\n**Verificación independiente:** 1 − (0,80 × 0,90) = 1 − 0,72 = 0,28 = **28%**. Confirma por ruta distinta (multiplicativa vs. aditiva).\n\n**Explicación breve:** no es 30% (20%+10%) porque el 10% se aplica sobre el precio *ya rebajado* (200 €), no sobre los 250 € originales. Los descuentos se **compuestan**, no se suman: el segundo golpea una base menor, por eso el efecto real es menor que la suma aditiva.\n\n**Condición verificable:** el 28% es correcto **si y solo si** el cupón del 10% se aplica sobre el precio rebajado, como indica el enunciado. Si la política aplicara el cupón sobre el *precio original*, el final sería 250×0,80×0,90→ 200 € y el equivalente 20%. Verificar términos antes de afirmarlo como definitivo en un contexto real.\n\n**Ética/UX (nota, no cambio):** comunicar \"ahorro real 28%\" para evitar la ilusión de \"dos discounts\" que el cliente espera en 30%.\n\n**Condición de éxito:** precio final 180 € y descuento único 28%, verificable por 1−(0,8×0,9)=0,28.",
+    "segundos": 46.95,
+    "tokens_gen": 1944,
+    "tokens_prompt": 2041,
+    "thinking_tokens": 0
+  },
+  "plan_final": "## FASE A — PLAN\n\n**OBJETIVO:** Calcular precio final y descuento equivalente único de 250 € con −20% y luego −10% sobre el precio rebajado.\n\n**PLAN:**\n\n1. **Descuento 20%:** 250 × 0,80 = **200 €** (baja −50 €). [SABI0 cubre riesgo de escala: aplica al precio, no al cupón.]\n\n2. **Cupón 10% sobre 200 €:** 200 × 0,90 = **180 €** (baja −20 €). [SABI0.]\n\n3. **Precio final: 180 €. [Todos.]**\n\n4. **Descuento equivalente único:** (250 − 180)/250 = 70/250 = **28%**. [SABI0 y SABI1 cubren la trampa del 30%.]\n\n5. **Verificación por compuestos:** 1 − (0,8 × 0,9) = 1 − 0,72 = 0,28 = 28%. Confirma por ruta independiente. [SABI0.]\n\n6. **Explicación breve:** no es 30% (suma aditiva) porque los descuentos son secuenciales sobre base decreciente → efecto compuesto. [SABI0.]\n\n7. **Caveto de negocio (condicional):** si la política aplicara el cupón sobre el *precio original* (no rebajado), el final sería 200 € y el equivalente 20%. Verificar términos antes de dar 28% como definitivo. [SABI0 y SABI1.]\n\n8. **Riesgo percibido (opcional):** el efecto compuesto confunde al cliente, que espera 30%. Comunicar el ahorro real explícitamente para evitar reclamos. [SABI1.]\n\n9. **Mejora UX (lateral SABI2):** mostrar badge único **\"−28%\"** en vez de dos pasos, reduciendo la ilusión de \"dos descuentos\" y la carga cognitiva. No afecta al cálculo, solo a la presentación.\n\n**VEREDICTO:** Precio final **180 €**, descuento equivalente único **28%**. Ignorar SABI3 (ERROR de conexión).\n\nPLAN LISTO",
+  "ejecucion": {
+    "texto": "## Solución\n\n**Datos:** precio original = 250 €; descuento 1 = 20%; cupón 2 = 10% (sobre el precio ya rebajado).\n\n### Paso 1 — Primer descuento (20%)\n\n$$250 \\times (1 - 0{,}20) = 250 \\times 0{,}80 = 200\\ \\€$$\n\nSe aplican 50 € de descuento. El precio pasa a **200 €**.\n\n### Paso 2 — Cupón (10%) sobre el precio rebajado\n\n$$200 \\times (1 - 0{,}10) = 200 \\times 0{,}90 = 180\\ \\€$$\n\nSe aplican 20 € adicionales. El precio pasa a **180 €**.\n\n### Paso 3 — Precio final\n\n$$\\boxed{180\\ \\€}$$\n\nDescuento total en euros: $250 - 180 = 70\\ \\€$.\n\n### Paso 4 — Descuento equivalente único\n\n$$d = \\frac{250 - 180}{250} = \\frac{70}{250} = 0{,}28 = \\mathbf{28\\%}$$\n\n### Paso 5 — Verificación por ruta compuesta (independiente)\n\n$$1 - (0{,}80 \\times 0{,}90) = 1 - 0{,}72 = 0{,}28 = 28\\%\\ \\checkmark$$\n\nCoincide con el cálculo directo, así que el resultado es consistente.\n\n### Explicación breve\n\nLos dos descuentos **no se suman**. Un 20% + 10% ≠ 30% porque el segundo descuento (10%) se aplica sobre el precio **ya descontado** (200 €), no sobre los 250 € originales. Al ser secuenciales sobre una base decreciente, el efecto es **compuesto**:\n\n$$250 \\times 0{,}80 \\times 0{,}90 = 250 \\times 0{,}72 = 180\\ \\€$$\n\nEs decir, se paga el 72% del original → ahorro real del **28%**, no del 30%.\n\n### Caveto de negocio\n\nLa solución asume (como indica el enunciado) que el cupón del 10% se aplica **sobre el precio rebajado**. Si la política real aplicara el cupón sobre el *precio original*, el cálculo cambiaría a $250 \\times 0{,}80 - 250 \\times 0{,}10 = 200\\ \\€$ con un equivalente del 20%. Con los términos dados, la respuesta válida es **180 € y 28%**.\n\n**Respeta final: 180 € · Descuento equivalente único: 28%**\n\nEJECUCIÓN COMPLETA",
+    "segundos": 25.72,
+    "tokens_gen": 1075,
+    "tokens_prompt": 1150,
+    "thinking_tokens": 0
+  },
+  "total_segundos": 139.88,
+  "configuration": "default"
+}

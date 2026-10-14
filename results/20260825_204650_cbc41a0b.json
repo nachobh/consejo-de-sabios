@@ -1,0 +1,49 @@
+{
+  "task": "20260825_204650_cbc41a0b",
+  "objetivo": "Compara brevemente dos diseños para un servicio interno: A) una cola asíncrona con reintentos y B) una llamada síncrona directa. Para un proceso que tarda 30 segundos, tolera duplicados y debe seguir funcionando si el receptor se reinicia, recomienda uno y menciona dos riesgos o costes.",
+  "mode": "sabios",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 20:48:46",
+  "user_message": "[user]\nCompara brevemente dos diseños para un servicio interno: A) una cola asíncrona con reintentos y B) una llamada síncrona directa. Para un proceso que tarda 30 segundos, tolera duplicados y debe seguir funcionando si el receptor se reinicia, recomienda uno y menciona dos riesgos o costes.",
+  "sabios": {
+    "sabi3": {
+      "texto": "ERROR: <urlopen error [Errno 111] Connection refused>",
+      "segundos": 0,
+      "tokens_gen": 0,
+      "tokens_prompt": 0,
+      "thinking_tokens": 0
+    },
+    "sabi2": {
+      "texto": "1) VEREDICTO: APOYO a A (cola asíncrona con reintentos).\n\n2) LA IDEA LATERAL: En lugar de \"A contra B\", haz una **cola síncrona-oculta**: expone la API como llamada directa (B) pero enruta por un bus interno que bufferiza si el receptor cae y reintentar con dedupe (A). El usuario ve 30s \"inmediato\", el sistema nunca se bloquea. Al revés: lo que parece síncrono se comporta asíncrono.\n\n3) POR QUÉ: A resuelve los dos requisitos duros — tolera duplicados (dedupe por idempotencia) y sobrevive al reinicio del receptor (buffer en disco/inmemory no pierde mensajes). B fallaría porque bloquea al emisor 30s (pior体验) y, al reiniciarse el receptor sin buffer, pierdes todos los mensajes del batch — no \"sigue funcionando\", se para.\n\nDos costes reales de A:\n- **Retardo y complejidad operacional**: ordenes de latencia de cola y un sistema a operar (provisioning de workers, dead-letter queues, observabilidad).\n- **Mayor superficie de fallo**: duplicados y pérdidas de mensajes requieren idempotencia y reordeneo correctos o data races.\n\nValidación: escribe una carga con reinicio del receptor a mitad del proceso y mide duplicados + completados. Si el equipo puede operar el bus, A gana; si no, cae a B con buffer mínimo.",
+      "segundos": 44.42,
+      "tokens_gen": 606,
+      "tokens_prompt": 368,
+      "thinking_tokens": 0
+    },
+    "sabi1": {
+      "texto": "**VEREDICTO: APOYO a A)**  \n\n**Riesgos:**  \n- **Oculto:** Cola se satura en picos de carga, retrasando procesamientos.  \n- **Ético:** Enmascara fallos del receptor, evitando refactorización necesaria.  \n- **Largo plazo:** Retransmisiones masivas saturan infraestructura en fallos persistentes.  \n\n**LA CONDICIÓN:** Monitorizar profundidad de cola y latencia de reintentos; definir umbrales de escalado automático.",
+      "segundos": 50.56,
+      "tokens_gen": 630,
+      "tokens_prompt": 437,
+      "thinking_tokens": 0
+    },
+    "sabi0": {
+      "texto": "**1) VEREDICTO:** APOYO a la recomendación de A (cola asíncrona con reintentos); reserva sobre coste operativo y latencia en el emisor.\n\n**2) Tres argumentos técnicos:**\n\n1. **Timeout de borde:** 30 s síncronos supera el default de proxies (Cloudflare/Fastly 15 s). B se cortaría en el borde aunque el servicio receptor esté sano → fallo de integración, no de lógica.\n2. **Continuidad ante reinicio:** B es acoplada — si el receptor cae por 30 s, el emisor bloquea y necesita reintento, que reintroduce duplicados y colapsa en cascada bajo carga. ABufferiza (at-least-once): el emisor avanza, el receptor reconsume tras reiniciar. Cumple \"seguir funcionando\" sin reintentos en el path del emisor.\n3. **Duplicados tolerados:** A los cubre nativamente; en B lograrlo exigiria idempotencia/LLH en cada llamada, lo que reintroduce la complejidad que A resuelve por diseño.\n\n**Coste A:** infra de cola + DLQ + observabilidad del backlog; y latencia eventual añadida al emisor que hay que presupuestar.\n\n**3) LA CONDICIÓN:** Si el SLA del emisor exige latencia estricta (<5 s) *in-path*, la cola la degrada y el trade-off no cierra. También si el proceso baja a <10 s y el receptor rara vez se reinicia, B simplifica sin penalizar continuidad.",
+      "segundos": 72.99,
+      "tokens_gen": 1332,
+      "tokens_prompt": 390,
+      "thinking_tokens": 0
+    }
+  },
+  "plan": {
+    "texto": "**VEREDICTO:** Recomiendo **A) cola asíncrona con reintentos** (entrega at-least-once).\n\n**POR QUÉ (3):**\n1. **Timeout de borde:** 30 s síncronos supera el default de proxies (Cloudflare/Fastly ~15 s). B se cortaría en el borde aunque el receptor esté sano → fallo de integración, no de lógica.\n2. **Continuidad:** A bufferiza; el receptor reconsume tras reiniciar sin bloquear al emisor. B es acoplada y colapsa en cascada.\n3. **Duplicados:** A los cubre nativamente; en B exigiría idempotencia/LLH por llamada.\n\n**RIESGOS/COSTES (2):**\n1. **Coste operativo:** infra de cola + DLQ + observabilidad del backlog + provisioning de workers.\n2. **Saturación:** picos de carga llenan la cola y las reintentos masivas saturan infra — riesgo que **SABI1** añadió y **SABI0** confirmó (coste operativo).\n\n**CONDICIÓN:** Si el SLA exige latencia estricta <5 s in-path, o el proceso baja a <10 s y el receptor raramente se reinicia → **B simplifica**.\n\n**AJUSTE:** **SABI2** propuso una **cola síncrona-oculta** (API expuesta como B pero enrutada por un bus con buffer y dedupe) como compromiso; la incluyo como variante si se rechaza exponer latencia eventual.\n\n**PASOS:**\n1. Seleccionar cola con DLQ y reintentos exponenciales — *riesgo: backoff mal afinado → saturación.*\n2. Añadir dedupe por idempotencia — *riesgo: claves de id mal diseñadas → duplicados reales.*\n3. Definir métricas de profundidad de cola y latencia de reintentos con umbrales de escalado — *riesgo: sin umbral, el pico satura sin alerta.*\n4. Probar con reinicio del receptor a mitad de carga midiendo duplicados + completados — *riesgo: sin prueba, falsos positivos de continuidad.*\n\nPLAN LISTO",
+    "segundos": 43.2,
+    "tokens_gen": 1850,
+    "tokens_prompt": 1704,
+    "thinking_tokens": 0
+  },
+  "total_segundos": 116.19,
+  "configuration": "default"
+}

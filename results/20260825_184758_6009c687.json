@@ -1,0 +1,49 @@
+{
+  "task": "20260825_184758_6009c687",
+  "objetivo": "Una tienda aplica primero un descuento del 20% y después un cupón adicional del 10% sobre el precio ya rebajado. Si el precio original es 250 euros, ¿cuál es el precio final y qué descuento equivalente único se ha aplicado? Explica el cálculo brevemente.",
+  "mode": "sabios",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 18:50:13",
+  "user_message": "[user]\nUna tienda aplica primero un descuento del 20% y después un cupón adicional del 10% sobre el precio ya rebajado. Si el precio original es 250 euros, ¿cuál es el precio final y qué descuento equivalente único se ha aplicado? Explica el cálculo brevemente.",
+  "sabios": {
+    "sabi3": {
+      "texto": "ERROR: <urlopen error [Errno 111] Connection refused>",
+      "segundos": 0,
+      "tokens_gen": 0,
+      "tokens_prompt": 0,
+      "thinking_tokens": 0
+    },
+    "sabi2": {
+      "texto": "**Cálculo correcto:**\n- 1er descuento 20%: 250 × 0,8 = **200 €**\n- 2º cupón 10% sobre 200: 200 × 0,9 = **180 €** (precio final)\n- Descuento total aplicado: 250 − 180 = **70 €** → **28% equivalente** (no 30%; los descuentos compuestos no se suman, se multiplican: 0,8 × 0,9 = 0,72 → 28%).\n\n---\n\n1) **VEREDICTO:** APOYO al cálculo; RESERVAS para cómo el cliente lo percibe.\n\n2) **LA IDEA LATERAL:** Invierte el flujo y simplifica. En vez de aplicar \"20% + cupón 10%\" en dos pasos ocultos, **muestra un único badge del −28%** en el producto desde el principio (\"ahorro real de 70 €\"). El cupón lo conviertes en recompensa post-compra. Y al revés lo que nadie hace: que el **descuento equivalente (28%) sea el que enganche al cliente, no la suma arbitraria de 30%**.\n\n3) **POR QUÉ:** El cliente confunde dos cupones y piensa que paga más que un 28%. Revelar el 28% real **elimina fricción y objeciones**, aumenta la conversión del ticket. **Coste/riesgo:** el equipo ve el \"−28%\" como trampa (son dos descuentos legales, pero equivalentes) → falta de transparencia percibida. **Validación:** A-B test con la etiqueta −28% vs. los dos cupones separados, midiendo tasa de checkout. **Alternativa si falla:** mantener los dos pasos pero añadir texto explícito \"equivalente a un 28%\".",
+      "segundos": 59.77,
+      "tokens_gen": 702,
+      "tokens_prompt": 363,
+      "thinking_tokens": 0
+    },
+    "sabi0": {
+      "texto": "**VEREDICTO: APOYO** — el planteamiento es correcto y el cálculo es inequívoco.\n\n**Cálculo:**\n\n- Precio original: **250 €**.\n- Descuento 20% sobre original: 250 × 0,80 = **200 €**.\n- Cupón 10% sobre precio rebajado: 200 × 0,90 = **180 €**.\n\n**Precio final: 180 € | Descuento equivalente: 28% (70 € de descuento real).**\n\nFactor de equivalencia: 0,80 × 0,90 = 0,72 → se retiene el 72 %, así que el descuento único es **28 %**, no 30 %. Los dos descuentos compuestos multiplican coeficientes sobre el mismo base original, por eso no se suman linealmente.\n\n**Reservas técnicas:**\n\n1. **Riesgo de error del cliente:** cualquier interfaz que muestre un solo descuento debería aplicar 28 %; mostrar «20 % + 10 % = 30 %» genera reclamaciones. La trampa aritmética (sumar porcentajes) es la causa nº 1 de disputas.\n2. **Validación de entrada:** el cupón solo puede aplicarse si el precio tras el descuento supera cierto umbral o si el cupón no caduca; hay que comprobar base × coeficiente, no asumir el precio rebajado sin verificar.\n3. **Redondeo:** al aplicar 180 €, hay que fijar redondeo (truncar vs redondear) en todos los pasos intermedios para evitar que productos pequeños disparen el total en céntimos.\n\n**LA CONDICIÓN:** no cambia el número (28 %, siempre), pero lo cambiaría una política de negocio: si el cupón se aplica sobre el precio **original** (no rebajado), el descuento total sería **25 %** (75 €), y esa decisión la decide la empresa, no la matemática.",
+      "segundos": 65.87,
+      "tokens_gen": 733,
+      "tokens_prompt": 385,
+      "thinking_tokens": 0
+    },
+    "sabi1": {
+      "texto": "PRECIO FINAL: 180 € | DESCUENTO EQUIVALENTE: 28%.\nCálculo: 250 × 0,8 × 0,9 = 180. Reducción neta: 70€ (28%).\n\n1) VEREDICTO: RESERVAS\n\n2) 3 Riesgos:\n- Oculto: La complejidad matemática introduce fricción; un comprador cansado abandona el carrito.\n- Ético: Opacidad en la composición del precio para maximizar la percepción de ahorro sin valor añadido.\n- Largo plazo: Crea un cliente adicto a \"trucos\" y comparativas, no leal a la marca por valor.\n\n3) LA CONDICIÓN:\nSolo estratégico si la tasa de conversión aumenta >15% frente a un descuento plano del 28%, y los márgenes soportan la diferencia por ticket medio.",
+      "segundos": 105.54,
+      "tokens_gen": 1774,
+      "tokens_prompt": 432,
+      "thinking_tokens": 0
+    }
+  },
+  "plan": {
+    "texto": "# FASE A — PLAN\n\n## Objetivo\nCalcular el precio final tras aplicar 20% y luego 10% sobre el precio rebajado (250 €), y el descuento equivalente único.\n\n## Verificación del consenso (SABI0, SABI1, SABI2)\nConfirmo los números antes de planificar:\n- 250 × 0,80 = 200 €\n- 200 × 0,90 = 180 €\n- Factor: 0,80 × 0,90 = 0,72 → descuento único 28%\n- Comprobación: (250 − 180)/250 = 70/250 = 0,28 = **28%** ✓\n\n## Pasos del plan (cálculo + explicación)\n\n**Paso 1 — Primer descuento (20% sobre original):**\n`250 × 0,80 = 200 €`. Se aplica el multiplicador sobre el precio base.\n\n**Paso 2 — Cupón (10% sobre el precio ya rebajado):**\n`200 × 0,90 = 180 €`. El segundo porcentaje actúa sobre la nueva base (200 €), no sobre los 250 €.\n\n**Paso 3 — Descuento real y equivalente único:**\n- Descuento en €: `250 − 180 = 70 €`.\n- Descuento equivalente: `(250 − 180)/250 = 0,28 = 28%`.\n- Ruta alternativa del factor: `0,80 × 0,90 = 0,72` → se retiene el 72%, luego descuento único = **28%**.\n\n## Resultado final\n**Precio final: 180 € | Descuento equivalente único: 28% (70 €).**\n\n## Reservas cubiertas\n- **No sumar porcentajes (SABI0, SABI2):** 28% ≠ 30%; los descuentos compuestos se multiplican, no se suman.\n- **Transparencia (SABI2):** aclarar que el equivalente es 28% y no 30%, para evitar la trampa aritmética.\n- **Condición (SABI0):** si el cupón 10% se aplicara sobre el **precio original** (no el rebajado), el descuento total sería 25% (75 €); aquí se aplica sobre el rebajado, por eso da 28%.\n\nPLAN LISTO",
+    "segundos": 30.22,
+    "tokens_gen": 1196,
+    "tokens_prompt": 1733,
+    "thinking_tokens": 0
+  },
+  "total_segundos": 135.76,
+  "configuration": "default"
+}

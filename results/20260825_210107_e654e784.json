@@ -1,0 +1,49 @@
+{
+  "task": "20260825_210107_e654e784",
+  "objetivo": "Evalúa esta afirmación: 'Después de cambiar el prompt, el tiempo medio de respuesta bajó de 10 a 8 segundos y los usuarios satisfechos subieron del 60% al 65%; por tanto, el prompt causó la mejora'. Señala al menos dos amenazas a la inferencia causal y propone un experimento A/B que las reduzca.",
+  "mode": "sabios",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 21:02:41",
+  "user_message": "[user]\nEvalúa esta afirmación: 'Después de cambiar el prompt, el tiempo medio de respuesta bajó de 10 a 8 segundos y los usuarios satisfechos subieron del 60% al 65%; por tanto, el prompt causó la mejora'. Señala al menos dos amenazas a la inferencia causal y propone un experimento A/B que las reduzca.",
+  "sabios": {
+    "sabi3": {
+      "texto": "ERROR: <urlopen error [Errno 111] Connection refused>",
+      "segundos": 0,
+      "tokens_gen": 0,
+      "tokens_prompt": 0,
+      "thinking_tokens": 0
+    },
+    "sabi1": {
+      "texto": "1) VEREDICTO: RESERVAS\n\n2) DOS AMENAZAS Causales:\n- **Cambios concurrentes:** Infraestructura, carga del servidor o métricas de base cambiaron simultáneamente.\n- **Regresión a la media:** La mejora inicial pudo ser fluctuación natural post-medición extrema.\n\n3) EXPERIMENTO A/B PROPUESTO:\n- **Diseño:** Randomizar tráfico 50/50 entre prompt nuevo y prompt base durante 7 días hábiles.\n- **Métricas primarias:** Time-to-first-byte y NPS/CSAT por grupo.\n- **Control:** Registrar infraestructura (CPU, latencia DNS, versiones).\n- **Poder estadístico:** α=0.05, β=0.2 para detectar 2s diferencia en respuesta media.\n\nCONDICIÓN DE ACEPTACIÓN: Solo afirmar causalidad si la diferencia es estadísticamente significativa Y los factores de infraestructura muestran variación mínima entre grupos (<5%).",
+      "segundos": 37.06,
+      "tokens_gen": 369,
+      "tokens_prompt": 447,
+      "thinking_tokens": 0
+    },
+    "sabi0": {
+      "texto": "1) **VEREDICTO: RECHAZO** de la inferencia causal. Las dos métricas son compatibles con mejoras por *otro* factor (efecto simultáneo, confusión o regresión a la media), no por el prompt.\n\n2) **Amenazas a la causalidad:**\n   - **Confusión por canal/versión:** si el cambio de prompt fue simultáneo a un cambio de infraestructura, de modelo base o de UI. La reducción de 2s puede venir de *tokenización* o de un modelo más rápido, no del texto.\n   - **Regresión a la media:** un valor previo de 10s (posiblemente atípico) tiende a revertir; -2s puede ser ruido de una muestra de 8s. No hay dispersión para evaluar significancia.\n   - **Coincidencia de métricas:** satisfacción +2pp puede ser efecto placebo de cambios paralelos (notificación, campaña). Correlación 65% no implica causa sin poder estadístico.\n\n3) **Experimento A/B recomendado:**\n   - Población: tráfico de prod segmentado; asignación *aleatoria* por sesión (no por usuario, para evitar contaminación entre dispositivos).\n   - Variantes: control (prompt viejo) vs tratamiento (prompt nuevo), *isoforma*: mismo modelo base, mismo backend, sin cambios de UI.\n   - Tamaño: con σ desconocido, usar potencia 80% y α=0.05; precisar n por métricas de tiempo (media) y satisfacción (proporción) antes de arrancar.\n   - Segmentos: escalar por categoría/longitud de prompt, ya que el efecto puede depender de ellos.\n   - Duración: >2 semanas para cubrir patrones horarios y evitar sesgo por día de semana.\n   - **Condición objetiva de éxito:** el tratamiento supera control con p<0.05 en tiempo medio **y** en satisfacción, con intervalo de confianza que excluya 0; y sin cambios en latencia del sistema como covariable (regresión ajustada).\n\n4) **Reservas:** sin aleatorización y sin muestra suficiente, el -2s y el +5pp de satisfacción **no** prueban causalidad. Mitiga validando que ningún otro cambio (modelo, infra) fue simultáneo y aislando ese factor.",
+      "segundos": 38.25,
+      "tokens_gen": 559,
+      "tokens_prompt": 400,
+      "thinking_tokens": 0
+    },
+    "sabi2": {
+      "texto": "**1) VEREDICTO:** RESERVAS. La correlación temporal no es causalidad; faltan dos controles que la conviertan en estadísticamente válido.\n\n**2) LA IDEA LATERAL:** Olvida \"antes/después\" (compara fechas, y cualquier cambio en backend, infra, campaña o versión de app cae como confusión). Diseña un A/B **a nivel de sesión aleatorizado**: inyecta un \"prompt-hermano\" idéntico salvo contenido en ~5% del tráfico *per session* (no por fecha). Además, añade el instrumento **time-to-first-token del servidor** y correlacióna latencia percibida × satisfacción **por usuario**, no global. Y haz que un 1% vea el prompt original — si mejora frente a ese control, aíslas el efecto real del prompt.\n\n**3) POR QUÉ:** Ataca dos amenazas claras: (a) **confusión temporal** — algo más cambió en paralelo; (b) **regresión a la media / selección** — dos mediciones al azar se alejan de picos previos, y la satisfacción puede depender de escala de encuesta o Hawthorne (los usuarios sabían que algo cambió). Riesgo principal: si el confounding domina, el \"8 segundos\" es engañoso. Validación: A/B con control-hermano muestra el efecto real del prompt; si el prompt original (1%) no mejora sobre su control, el efecto es nulo. Alternativa si falla: abandona la causalidad y trata el cambio como feature a monitorear por cohort, no a optimizar.",
+      "segundos": 50.39,
+      "tokens_gen": 903,
+      "tokens_prompt": 378,
+      "thinking_tokens": 0
+    }
+  },
+  "plan": {
+    "texto": "**VEREDICTO:** RECHAZO. Correlación temporal no implica causa.\n\n**Amenazas a la inferencia (≥2):**\n1. **Confusión concurrente:** el cambio de prompt pudo coincidir con actualización de modelo, infra o UI; los −2 s pueden venir de una tokenización más rápida, no del texto.\n2. **Regresión a la media:** 10 s puede ser un pico atípico que revierte; sin dispersión (σ) no hay forma de separar ruido de efecto real.\n3. (Adicional) **Poder estadístico nulo:** el +5 pp de satisfacción puede ser efecto placebo de una campaña paralela; una correlación de 65 % no implica causa.\n\n**Experimento A/B (aisla ambos factores):**\n- **Diseño:** randomización **por sesión** (~50/50), no por fecha. *Isoforma:* mismo modelo, mismo backend, sin cambios de UI entre variantes.\n- **Instrumento objetivo:** *time-to-first-token* del servidor (no la latencia auto-reportada por el usuario).\n- **Tamaño:** potencia 80 %, α=0.05; calcular **n por separado** para Δ=2 s (media) y Δ=5 pp (proporción) antes de arrancar.\n- **Duración:** ≥14 días para cubrir el ciclo semanal y evitar sesgo de día hábil.\n- **Guardianes:** registrar infra (CPU, DNS, versiones) y aceptar solo si la variación entre grupos < 5 % (corregí mi plan con la condición concreta de SABI1); como triangulación, un 1 % ve el prompt original — si no mejora sobre su control, el efecto es nulo (idea de SABI2).\n- **Segmentos:** escalar por longitud y categoría de prompt.\n\n**Condición de éxito:** tratamiento > control con p<0.05 en tiempo medio **y** en satisfacción, intervalo de confianza que excluya 0, y sin covariable de infraestructura significativa (regresión ajustada).\n\n*(SABI3 devolvió ERROR: conexión rehusada; ignorado y continuado con los demás.)*\n\nPLAN LISTO",
+    "segundos": 43.46,
+    "tokens_gen": 1809,
+    "tokens_prompt": 1988,
+    "thinking_tokens": 0
+  },
+  "total_segundos": 93.85,
+  "configuration": "default"
+}

@@ -1,0 +1,49 @@
+{
+  "task": "20260825_185348_620fbe09",
+  "objetivo": "Extrae de esta frase los datos en formato JSON válido con las claves nombre, ciudad y años: 'Marta vive en Valencia y tiene 37 años.' No añadas texto fuera del JSON.",
+  "mode": "sabios",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 18:55:04",
+  "user_message": "[user]\nExtrae de esta frase los datos en formato JSON válido con las claves nombre, ciudad y años: 'Marta vive en Valencia y tiene 37 años.' No añadas texto fuera del JSON.",
+  "sabios": {
+    "sabi3": {
+      "texto": "ERROR: <urlopen error [Errno 111] Connection refused>",
+      "segundos": 0,
+      "tokens_gen": 0,
+      "tokens_prompt": 0,
+      "thinking_tokens": 0
+    },
+    "sabi2": {
+      "texto": "```json\n{\n  \"nombre\": \"Marta\",\n  \"ciudad\": \"Valencia\",\n  \"años\": 37\n}\n```",
+      "segundos": 5.24,
+      "tokens_gen": 63,
+      "tokens_prompt": 339,
+      "thinking_tokens": 0
+    },
+    "sabi0": {
+      "texto": "Hecho. JSON válido, sin texto fuera de él:\n\n```json\n{\n  \"nombre\": \"Marta\",\n  \"ciudad\": \"Valencia\",\n  \"años\": 37\n}\n```\n\n1) Extracción por tokens delimitados: `Marta`, `Valencia` y `37` son los únicos sustantivos y número, con roles unívocos (sujeto, lugar, cuantificador) → no hay ambigüedad léxica.\n2) El año se emitió como entero numérico (`37`), no string, porque es un valor cuantitativo comparable — más eficiente para filtros y agregaciones.\n3) No implementé validación de entrada (cierre de paréntesis, escaneo de tokens, detección de errores) porque el prompt es un caso puntual, no una función reutilizable; en producción ese step reduciría fallos en cadena como \"Marta\" + \"37 años\".\n\n**LA CONDICIÓN**: que \"ciudad\" fuera inequívoca — por ejemplo, si la frase hubiese sido \"Marta tiene 37 años en Valencia\", el rol de Valencia cambiaría a temporal y el JSON sería inválido para este esquema.",
+      "segundos": 16.95,
+      "tokens_gen": 290,
+      "tokens_prompt": 361,
+      "thinking_tokens": 0
+    },
+    "sabi1": {
+      "texto": "```json\n{\n  \"nombre\": \"Marta\",\n  \"ciudad\": \"Valencia\",\n  \"años\": 37\n}\n```\n\n1) VEREDICTO: APOYO — Extracción técnica precisa y mínima.\n\n2) 3 riesgos:\n- Oculto: ¿el downstream consumidor espera claves en minúsculas, con guiones bajos o strings en vez de números?\n- Ético: La tarea es neutral, pero si esto se vuelve parte de un pipeline más grande: ¿quién decide qué datos son \"extraibles\" y qué se silencian sin notificación?\n- Largo plazo: Dependencia de parsing frágil — una coma extra, un adverbio insertado, o puntuación cambiada rompe el flujo y se genera \"deuda técnica silenciosa\".\n\n3) LA CONDICIÓN: Aceptable cuando el extractor se encapsula en una API con contrato explícito (validación de salida + manejo de errores documentado), y cuando existen fallbacks cuando la frase está corrupta o ambigua. Observa: rotas de integración; verifica: pruebas de edge cases (signos, negaciones, datos faltantes). Resuelve cuando: tienes control sobre downstream y las pruebas pasan al 99%+.",
+      "segundos": 29.68,
+      "tokens_gen": 599,
+      "tokens_prompt": 408,
+      "thinking_tokens": 0
+    }
+  },
+  "plan": {
+    "texto": "**FASE A — PLAN**\n\nObjetivo: extraer nombre, ciudad, años de la frase y devolver JSON puro, sin texto adicional.\n\n**Pasos:**\n1. **Identificar campos** (SABI0): nombre=\"Marta\" (sujeto), ciudad=\"Valencia\" (lugar), años=\"37\" (cuantificador). Roles unívocos, sin ambigüidad léxica ni solapamiento de tokens.\n2. **Decidir tipo de `años`**: el objetivo no define contrato de salida. Adopto el mínimo razonable — entero `37` (no string), comparable y filtrable, según SABI0. *Supuesto declarado*: si downstream exige string, se cambia a `\"37\"`. (SABI1 advierte este riesgo; resuelto por supuesto explícito, **no** por adoptar el consenso ciegamente.)\n3. **Verificar claves exactas** (SABI1): nombre, ciudad, años — minúsculas, snake_case, coinciden con el pedido. Confirmar que la clave sea exactamente \"años\" (plural, no \"año\").\n4. **Generar JSON válido**: comillas dobles en claves y strings, sin comas colgantes, objeto único.\n5. **Aislar el artefacto**: el output final es **solo** el objeto JSON — sin fences ` ```json `, sin comentarios introductorios o explicativos (regla \"sin texto fuera del JSON\").\n6. **Descartar ruido**: SABI3 devolvió ERROR (conexión) → ignorar según reglas; no afecta la extracción.\n7. **Validar salida** (SABI1): en el pipeline correr el objeto por un parser (`json.loads`) antes de imprimir; garantizar serialización limpia y sin trailing whitespace.\n\n**Decisión clave:** `años` como entero. Ningún sabio cambió la extracción base (coincidencia técnica), pero el tipo es el único punto de fricción con downstream — lo resuelvo por supuesto mínimo en vez de copiar el acuerdo.\n\nArtefacto esperado: `{ \"nombre\": \"Marta\", \"ciudad\": \"Valencia\", \"años\": 37 }`\n\nPLAN LISTO",
+    "segundos": 46.4,
+    "tokens_gen": 1992,
+    "tokens_prompt": 1205,
+    "thinking_tokens": 0
+  },
+  "total_segundos": 76.09,
+  "configuration": "default"
+}

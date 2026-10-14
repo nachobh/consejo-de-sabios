@@ -1,0 +1,50 @@
+{
+  "task": "20260825_184004_5591a429",
+  "objetivo": "Una migración de base de datos debe añadir una columna obligatoria y cambiar el formato de una respuesta pública. Hay clientes antiguos que seguirán activos durante dos semanas. Detecta la incompatibilidad, propone una estrategia expand-and-contract en fases y define una condición objetiva para retirar la compatibilidad antigua.",
+  "mode": "solo",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 18:43:55",
+  "user_message": "[user]\nUna migración de base de datos debe añadir una columna obligatoria y cambiar el formato de una respuesta pública. Hay clientes antiguos que seguirán activos durante dos semanas. Detecta la incompatibilidad, propone una estrategia expand-and-contract en fases y define una condición objetiva para retirar la compatibilidad antigua.",
+  "sabios": {
+    "sabi3": {
+      "texto": "ERROR: <urlopen error [Errno 111] Connection refused>",
+      "segundos": 0,
+      "tokens_gen": 0,
+      "tokens_prompt": 0,
+      "thinking_tokens": 0
+    },
+    "sabi2": {
+      "texto": "**PLAN (entrega técnica)**\n\n**Incompatibilidad detectada:** columna obligatoria + cambio de formato público rompen los dos escenarios a la vez. Col 1: caída al truncar 2 semanas de legacy. Col 2: si cambio formato de raíz, los clientes antiguos responden mal hasta su corte; si cambio en el mismo tramo, nadie lee bien.\n\n**Estrategia expand-and-contract (3 fases):**\n1. **Expand:** 0 downtime — Añade columna nueva vacía + columna de formato nuevo, manteniendo lectura de ambos formatos (back-compat forward). Rango/schéma en vivo.\n2. **Contract:** Doble lectura (nuevo + antiguo) durante las 2 semanas. Mide `COUNT(*)` por versión servida con métrica.\n3. **Retiro objetivo:** se elimina compatibilidad cuando `PCT_FORMATO_VIEJO SERVIDO < 1%` **durante 72h consecutivas** Y **0 errores de parse legacy** en los logs. Es objetiva: se trata de una métrica, no de un \"cuando me sienta cómodo\".\n\n**Primero:** desplegar fase expand y monitorizar. **Riesgo principal:** costo de mantenimiento de doble lectura + complejidad de branching en el path crítico. **Validación:** conmutación a lectura única en staging antes de aplicar a prod. **Fallback si falla:** mantener doble lectura; el retiro nunca es una hard-kill si la métrica no se cumple.\n\n**VEREDICTO:** APOYO (plan sólido)\n\n**LA IDEA LATERAL:** ¿Y si el cambio de formato no es \"cambio\", sino **un sufijo/versión** que el cliente decide ignorar según su capa? Es decir, empaqueta la respuesta como `{data: v3, _schema: \"legacy\"}|{data: v3, _schema: \"new\"}` y deja el cliente elegir vía cabecera. La nueva columna obligatoria se introduce como metadata interna, no en la respuesta pública.\n\n**POR QUÉ:** resuelve el problema de que *el cliente antiguo sigue siendo activo porque lee mal el nuevo formato*. El coste es serialización ligera, pero elimina las 2 semanas de compatibilidad y el risk de doble lectura por completo: la transición es invisible y reversible en la cabecera del cliente.",
+      "segundos": 67.45,
+      "tokens_gen": 989,
+      "tokens_prompt": 358,
+      "thinking_tokens": 0
+    },
+    "sabi0": {
+      "texto": "# ARTIFACTO: Estrategia Expand-and-Contract (migración 14 días)\n\n## 1. Incompatibilidad detectada\n- **Columna obligatoria sin DEFAULT**: cualquier consulta de clientes antiguos (escritura o filtro) que no garantice valor nace produce `NULL` o error de integridad → respuestas públicas corruptas/500.\n- **Cambio de contrato de respuesta**: clientes sin cache actualizado reciben payload v1, con cache reciben v2 → dos formas de salida falsas durante 14 días.\n- **Ventana de 14 días** es muy corta para doble lectura/escritura en tabla caliente; no da margen de 2 rolbacks.\n\n## 2. Plan de fases\n**Fase A — Expand (día 1–4):** Provisionar tabla nueva. Schema: columna nueva `nullable` con DEFAULT válido. Duplar lectura en tabla vieja; tráfico 0%. Validación de entradas con migraciones idempotentes.\n\n**Fase B — Tráfico mixto (día 5–10):** Redirigir lectura a nueva tabla gradualmente (canary 5% → 25% → 50%). Doble escritura protegida: writes van a tabla vieja hasta día 8. Comparar hashes de salida v1/v2.\n\n**Fase C — Rollover (día 11–12):** Writes a tabla nueva. Implementar capa de compatibilidad en API (normalizar formato v1/v2 con transformer) antes de cambiar endpoint público.\n\n**Fase D — Contract (día 13–14):** 100% tráfico nuevo, retirar clientes antiguos. Depurar índices/columnas en 72h.\n\n## 3. Condiciones objetivas de éxito (Go/No-Go por fase)\n- **<0.1% de errores 5xx** en tráfico mixto durante 72h consecutivas.\n- **Hash de payload idéntico** entre v1 y v2 en carga de test (N=10k respuestas).\n- **0 drift** en conteo de filas entre tablas.\n\n---\n\n# EVALUACIÓN PRAGMÁTICA\n\n**1) VEREDICTO: APOYO**\n\n**2) Argumentos técnicos**\n- Expand-and-contract es correcta para este caso: aísla el cambio de esquema del cambio de contrato, evita ventanas de doble escritura. Pero el **14 días es ajustado**: solo admite 1 rollback real.\n- El verdadero riesgo no es la columna, es **el cambio de formato de respuesta pública sin transformer**: sin una capa de compatibilidad, el 50% de la ventana de tráfico mixto emite un payload v1 y otro v2 → clientes reciben dos formas de dato falsas.\n- Coste oculto por **cache**: si respuestas están cached (Redis), el purge invalida tras el cambio de formato. Sin purge, clientes ven payload v1 viejo por horas tras rollout v2.\n\n**3) LA CONDICIÓN:**\nAprobaría o no esta estrategia según que **el transformer de compatibilidad (normalizador v1↔v2) esté ya unit/contract-testeado con un caso de borde por campo antes de Fase B**, y que se defina **qué cliente se comporta como breaking** (no asumir todos). Si no hay transformer + purge de cache verificado, el Go se retrasa a fase B+1.",
+      "segundos": 92.89,
+      "tokens_gen": 1228,
+      "tokens_prompt": 380,
+      "thinking_tokens": 0
+    },
+    "sabi1": {
+      "texto": "1) VEREDICTO: RESERVAS.\n\n2) 3 riesgos:\n* Oculto: Fase híbrida genera registros corruptos; si falla la columna obligatoria, pierdes integridad histórica sin rollback inmediato.\n* Ético: Imponer cambios rompe la promesa de continuidad; manipular las reglas del juego a mitad de partida erosiona la confianza leal.\n* Largo plazo: La coexistencia obliga a mantener dos líneas de soporte; cada hora invertida en mantener la retrocompatibilidad es una hora que no resuelve el futuro.\n\n3) LA CONDICIÓN:\nCondición objetiva: Tasa de error en el endpoint antiguo debe caer al 0.1% en los 14 días previos al corte. Si supera, activar pausa inmediata. Sin este dato, la fecha es un capricho político, no una decisión estratégica sólida.",
+      "segundos": 136.37,
+      "tokens_gen": 2293,
+      "tokens_prompt": 427,
+      "thinking_tokens": 0
+    }
+  },
+  "respuesta_directa": {
+    "texto": "## EJECUCIÓN — Migración expand-and-contract de `customers.birthdate`\n\n### Escario concreto (autocontenido)\n- **Campo afectado:** `customers.birthdate`.\n- **Estado actual:** columna `birthdate TEXT` (con NULLs), la API `GET /api/v1/customers/{id}` la devuelve como `\"15/03/2024\"` (DD/MM/YYYY).\n- **Requisito nuevo:** (1) columna **obligatoria** `birthdate_ts TIMESTAMP NOT NULL`; (2) la respuesta pública pasa a ISO 8601 `\"2024-03-15T00:00:00Z\"`.\n- **Restricción:** clientes antiguos activos 2 semanas, esperan DD/MM/YYYY.\n\n---\n\n### 1) Incompatibilidad detectada\nSe detecta con **dos fallas de contrato acopladas**, no con una sola:\n\n```python\n# FALLO A (contrato de lectura): si cambias el formato antes de tiempo\ndef test_cliente_antiguo():\n    assert client.get(\"/api/v1/customers/42\").json()[\"birthdate\"] == \"15/03/2024\"\n    # Si activas ISO 8601 en v1 → AssertionError → el cliente antiguo rompe su parser.\n\n# FALLO B (contrato de escritura): ALTER ... NOT NULL sobre datos existentes\n#   UPDATE customers SET birthdate_ts = to_timestamp(birthdate,...)  # NULL → error NOT NULL\n```\nEl peligro real es la **inconsistencia de estado**: si v1 devuelve ISO pero el backend aún lee `TEXT`, o viceversa, respuestas y DB divergen. Por eso **formato y almacenamiento se desacoplan** hasta el contract.\n\n---\n\n### 2) Fases expand-and-contract\n\n**FASE 1 — EXPAND (aditiva, 0% de riesgo para clientes actuales)**\n```sql\n-- 1a. Columna nueva, inicialmente NULLable para poder cargar\nALTER TABLE customers ADD COLUMN birthdate_ts TIMESTAMP;\n\n-- 1b. Backfill desde el legado (DD/MM/YYYY). Decisión: NULLs reales → centinela 1900-01-01\nUPDATE customers\nSET birthdate_ts = to_timestamp(birthdate, 'DD/MM/YYYY')\nWHERE birthdate IS NOT NULL AND birthdate <> '';\n\nUPDATE customers SET birthdate_ts = TIMESTAMP '1900-01-01'\nWHERE birthdate_ts IS NULL;   -- supuesto declarado: sin DOB conocido\n\n-- 1c. Solo ahora se vuelve obligatoria (ya no hay NULLs)\nALTER TABLE customers ALTER COLUMN birthdate_ts SET NOT NULL;\n```\n\n**FASE 2 — DUAL-WRITE (el backend escribe en ambos formatos)**\n```python\ndef update_customer(cid, birthdate):\n    ts = parse_any(birthdate)  # acepta \"DD/MM/YYYY\" e ISO\n    db.execute(\"\"\"\n        UPDATE customers\n        SET birthdate_ts = $1,\n            birthdate    = to_char($1, 'DD/MM/YYYY')   -- lego mantenido para lectura en v1\n        WHERE id = $2\"\"\", (ts, cid))\n```\nLa API **sigue devolviendo DD/MM/YYYY** (formato antiguo servido, pero ya sobre `birthdate_ts`). Rollout por canary: 1% → 5% → 50% → 100% durante 72 h monitoreando error-rate.\n\n**FASE 3 — CONTRACT (retira compatibilidad antigua)**\n```python\n# 3a. Activar formato ISO en el endpoint principal (ahora v1 = v2)\n@app.get(\"/api/v1/customers/{cid}\")\ndef get(cid",
+    "segundos": 94.65,
+    "prompt_tokens": 592,
+    "completion_tokens": 4096,
+    "thinking_tokens": 0,
+    "total_tokens": 4688
+  },
+  "total_segundos": 231.02,
+  "configuration": "default"
+}

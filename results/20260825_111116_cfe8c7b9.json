@@ -1,0 +1,50 @@
+{
+  "task": "20260825_111116_cfe8c7b9",
+  "objetivo": "Redacta un plan de 4 pasos para migrar una API sin tiempo de inactividad. Debe incluir compatibilidad hacia atrás, migración gradual, observabilidad y rollback. Sé concreto y numera los pasos.",
+  "mode": "solo",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 11:15:21",
+  "user_message": "[user]\nRedacta un plan de 4 pasos para migrar una API sin tiempo de inactividad. Debe incluir compatibilidad hacia atrás, migración gradual, observabilidad y rollback. Sé concreto y numera los pasos.",
+  "sabios": {
+    "sabi2": {
+      "texto": "1) **VEREDICTO: RESERVAS con giro.** Tu plan de 4 pasos es correcto, pero obvio. Te propongo hacerlo al revés.\n\n2) **LA IDEA LATERAL: \"Migra lo invisible\".** Olvida dual-write y migración gradual del servicio. En vez de apuntar clientes a una nueva API, interpones **un proxy/adapter de traducción** frente a la API actual. El proxy traduce v1→v2 en el aire: el cliente nunca cambia, la API subyacente migra y se degrada en producción (no staging) en días, y el contrato público sigue congelado para siempre. En lugar de 4 pasos de despliegue, construyes un traductor y todo lo demás queda oculto bajo él.\n\n3) **POR QUÉ:** Resuelve el problema real de tu plan — el acoplamiento de clientes y la complejidad de dual-write — de forma radical: cero cambios en el cliente, cero réplica de datos, la migración real ocurre en vivo. El coste oculto es brutal: ese proxy se convierte en **el cuello de botella y el único punto de fallo crítico** de toda tu API. Si falla, toda la API cae; y mantener/auditar una capa de traducción a medio plazo es un costo de operación que la mayoría no dimensiona hasta que el servicio crece. **Aporta simplicidad real hoy, acumula deuda arquitectónica mañana.**",
+      "segundos": 92.13,
+      "tokens_gen": 774,
+      "tokens_prompt": 271,
+      "thinking_tokens": 0
+    },
+    "sabi0": {
+      "texto": "1) VEREDICTO: RESERVAS\n\n2) Argumentos técnicos:\n- **Enrutamiento por versión es el cuello de botella, no el plan.** Cero-downtime solo existe si *todo* el tráfico pasa por un único gateway que puede enmascarar el swap (SNI o header `Accept-Version`). Sin eso, \"sin downtime\" es teórico. Un gateway como Kong/Apigateway añade ~1-3ms de latencia por proxy; en p99 eso puede duplicar la cola. El punto único de fallo se desplaza del código al LB.\n- **Canary mal dimensionado es ceguera.** Empezar en 1% es peligroso: <1% de errores con <5 usuarios duros puede pasar desapercibido hasta que llega a ~10-15%. Regla de pulso: cada salto de 1%→10%→50%→100% con observabilidad real en 5-10 min, no \"cuando se pudo\".\n- **Rollback instantáneo solo si v2 no contaminó el estado.** Si v2 ejecuta migraciones de DB no reversibles o no idempotentes, revertir el peso en el LB no devuelve tu estado previo: tienes downtime semántico aunque el socket nunca caiga. Rollback rápido exige migraciones reversibles (forward/rollback en DB) o migraciones no invasivas (nuevo esquema, validador dual).\n\n3) LA CONDICIÓN: que me confirmes (a) tráfico 100% por un gateway con routing por versión, y (b) que las migraciones de datos son reversibles/idempotentes. Sin eso, el paso 4 (rollback) es una promesa vacía.",
+      "segundos": 102.03,
+      "tokens_gen": 1006,
+      "tokens_prompt": 261,
+      "thinking_tokens": 0
+    },
+    "sabi3": {
+      "texto": "1) VEREDICTO: RESERVAS extremas.\n\n2) 3 fallos lógicos o premisas rotas:\n   1. Premisa de que \"sin tiempo de inactividad\" implica \"sin riesgo de corrupción\", ignorando que cualquier switch de routing crea una ventana de inconsistencia de estado (Sócrates).\n   2. Asumir que \"compatibilidad hacia atrás\" es estática, cuando cada llamada valida contra el viejo contrato mientras el nuevo se construye, acumulando deuda silenciosa (Sócrates).\n   3. Ignorar que un \"rollback\" no es magia; mientras más tiempo opera la nueva versión, más datos divergen que la API antigua no puede reconciliar (Sócrates).\n\n3) LA PREGUNTA QUE NADIE HACE:\n\"Si aceptamos que la tolerancia a fallos es una constante en los sistemas distribuidos, ¿qué garantiza realmente una migración 'perfecta' si el éxito depende de supuestos de control que nunca existen fuera de un laboratorio?\"",
+      "segundos": 151.23,
+      "tokens_gen": 1728,
+      "tokens_prompt": 437,
+      "thinking_tokens": 0
+    },
+    "sabi1": {
+      "texto": "VEREDICTO: RESERVAS.\n\n1) VEREDICTO: RESERVAS.\nLa promesa de \"sin tiempo de inactividad\" es una ilusión de seguridad. El plan de 4 pasos genera falsa continuidad.\n\n2) 3 riesgos:\n1) Oculto: Los scripts de compatibilidad mascan fallos reales, retrasando correcciones críticas hasta que el sistema colapsa estructuralmente.\n2) Ético: Sacrificamos la transparencia real de la infraestructura por una reputación de invulnerabilidad ante los usuarios.\n3) Largo plazo: La migración escalonada crea una realidad dual donde la deuda técnica nunca es liquidada, bloqueando decisiones futuras.\n\n3) LA CONDICIÓN:\nSolo aceptable si retenemos la autoridad completa sobre el bloqueo de versiones y podemos revertir a la última firma de confianza en menos de 10 minutos. Sin eso, es un riesgo político disfrazado de técnico.",
+      "segundos": 213.45,
+      "tokens_gen": 3419,
+      "tokens_prompt": 287,
+      "thinking_tokens": 0
+    }
+  },
+  "respuesta_directa": {
+    "texto": "# EJECUCIÓN — Plan de Migración de API Sin Tiempo de Inactividad\n\nA continuación desarrollo los 4 pasos concretos de la migración, aplicando compatibilidad hacia atrás, migración gradual, observabilidad y rollback.\n\n## PASO 1 — Capa de compatibilidad hacia atrás (dual API)\n\n**Objetivo:** exponer la nueva API alongside la existente sin romper clientes actuales.\n\n- **Versionado por URL y headers:** la API antigua se mantiene en `/v1/` y la nueva en `/v2/`. Se añade soporte del header `Accept-API-Version: consumer=<version>` para controlar la ruta a nivel de cliente.\n- **Contrato compartido:** se define el esquema en OpenAPI 3.1 y se valida con un contrato (p.ej., `Spectator` / `Schemathesis`). Los campos viejos **no se eliminan**; se marcan como `deprecated` pero siguen respondiéndose.\n- **Adaptador de traducción:** se implementa un mapeador `V1→V2` y `V2→V1` para normalizar payloads entre versiones (p.ej., `user_id` ↔ `userId`).\n- **Verificación:** se ejecuta un diff de respuestas en el entorno staging comparando 10.000 peticiones reales grabadas (playback) contra ambas implementaciones.\n- **Umbral de salida:** < 0.01% de diferencias no documentadas antes de avanzar.\n\n## PASO 2 — Migración gradual con feature flags y canary\n\n**Objetivo:** trasladar tráfico de forma controlada y reversible.\n\n- **Feature flag centralizado** (LaunchDarkly / un flag propio en Redis): `api_v2_enabled=false` por defecto.\n- **Router/gateway con routing por flag:** en el API Gateway (Kong/Envoy) se configura una regla que deriva el % de tráfico a V2 según el flag.\n- **Secuencia de canary (weighted routing):**\n  1. `1%` del tráfico → 30 min de observación.\n  2. `10%` → 2 horas.\n  3. `50%` → 4 horas.\n  4. `100%` → confirmación manual.\n- **Segmentación por tenant:** los primeros clientes se eligen por bajo riesgo (alto SLA, equipos de contacto directo).\n- **Health-check por versión:** cada nodo V2 responde a `/health/v2`; el balanceador solo lo rutea si pasa.\n\n## PASO 3 — Observabilidad completa (triple de datos)\n\n**Objetivo:** visibilidad total y detección temprana de regresiones.\n\n- **Métricas (Prometheus):** por versión y flag, se exportan: `http_requests_total{version,code}`, latencia p50/p95/p99, tasa de error, y `flag_v2_percentage`.\n- **Trazabilidad (OpenTelemetry):** se inyecta el `trace_id` en headers V1/V2 para correlacionar la misma petición entre ambas implementaciones.\n- **Logs estructurados (JSON):** se añade el campo `api_version` y `migration_flag` a cada log.\n- **Dashboards (Grafana):** panel comparativo V1 vs V2 con SLOs. Alertas:\n  - Error rate V2 > 1% sostenido 2 min →PagerDuty.\n  - Latencia p99 V2 > 1.5× V1 → notificación.\n  - Diferencia de respuesta V1 vs V2 > umbral → alerta.\n- **SLOs:** disponibilidad ≥ 99.95%, error rate ≤ 0.5%.\n\n## PASO 4 — Rollback automático y manual\n\n**Objetivo:** revertir en segundos ante cualquier desviación.\n\n- **Rollback por flag (instantáneo):** devolver `api_v2_enabled=false` en el Gateway reenvía todo el tráfico a V1 en < 5 s (sin redeploy). V1 sigue íntegra durante toda la migración.\n- **Rollback por versión de despliegue:** si se escala V2, se mantiene `Replicas V1` activas (min 2) listos para escalar. `kubectl scale deploy/api-v1 --replicas=4`.\n- **Auto-rollback (feedback loop):** si la métrica `error_rate_v2 > 1%` durante 2 min, un script (o la policy de Argo/Rollouts) invierte el flag automáticamente y dispara un post-mortem.\n- **Umbral de bloqueo (circuit breaker):** si el ratio de error de V2 supera el 5%, el breaker lo aísla y fuerza el retorno a V1.\n- **Verificación post-rollback:** se confirma que el error rate global vuelve al baseline (< 0.1%) y se archiva el trazo de la caída para análisis.\n\n---\n\n**Secuencia de ejecución:** Paso 1 (dual API + validación de contrato) → Paso 2 (flags + canary) con Paso 3 (observabilidad) activado en paralelo desde el minuto 0 → Paso 4 (rollback) preparado y probado antes de subir del 10%.\n\nEJECUCIÓN COMPLETA",
+    "segundos": 31.95,
+    "prompt_tokens": 457,
+    "completion_tokens": 1428,
+    "thinking_tokens": 0,
+    "total_tokens": 1885
+  },
+  "total_segundos": 245.41,
+  "configuration": "default"
+}

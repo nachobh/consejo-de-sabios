@@ -1,0 +1,49 @@
+{
+  "task": "20260825_135444_86e9d572",
+  "objetivo": "Una migración de base de datos debe añadir una columna obligatoria y cambiar el formato de una respuesta pública. Hay clientes antiguos que seguirán activos durante dos semanas. Detecta la incompatibilidad, propone una estrategia expand-and-contract en fases y define una condición objetiva para retirar la compatibilidad antigua.",
+  "mode": "sabios",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 13:58:33",
+  "user_message": "[user]\nUna migración de base de datos debe añadir una columna obligatoria y cambiar el formato de una respuesta pública. Hay clientes antiguos que seguirán activos durante dos semanas. Detecta la incompatibilidad, propone una estrategia expand-and-contract en fases y define una condición objetiva para retirar la compatibilidad antigua.",
+  "sabios": {
+    "sabi0": {
+      "texto": "**1) VEREDICTO: RESERVAS**\n\nLa base de la estrategia (expand-and-contract) es correcta y estándar, pero la propuesta deja tres huecos que pueden romper producción.\n\n**2) Tres argumentos técnicos**\n\n1) **La detección de clientes antiguos no puede resolverse por tiempo.** \"Dos semanas\" es un calendario, no una medida de incompatibilidad. Un cliente viejo que llama sin versionar recibirá el formato nuevo y hará parseo de un campo ausente → 500 o silencioso fracaso. **Falta versionar el contrato** (versión en URL/`Accept` + feature flag), no solo cambiar el schema. Sin versioning, el expand-and-contract es teóricamente inviable.\n\n2) **El coste del doble camino de lectura es real y cuantificable.** Durante la contracción duplicas toda la lógica de parseo del lado de lectura (campo N → coste de cómputo N por invocación, testing N). Si el endpoint dispara ~10 req/s, duplicas ~20 cómputos/s de parseo viejo + toda la deuda de mantener dos ramificaciones. El dual-read sin un plan de read-only es deuda que nunca se amortiza.\n\n3) **La columna obligatoria exige backfill antes de cortar.** Añadir columna obligatoria con formato nuevo implica **rellenar/convertir el 100% de filas** antes del corte. Si la conversión es asíncrona, en la ventana de sobreposición tendrás filas viejas sin columna → lecturas fallidas en medio de la migración. El job de backfill y su verificación de completitud deben ir acoplados al cronograma.\n\n**3) LA CONDICIÓN**\n\nAprobaré el corte al legacy cuando el **canary/soak test en staging muestre 0 errores 4xx/5xx por \"field not found\" durante ≥72h a carga real, la columna nueva esté backfillida en el 100% de filas, y el versioning de la API ya esté activo** — no cuando transcurran 14 días. Días ≠ evidencia.",
+      "segundos": 124.6,
+      "tokens_gen": 1232,
+      "tokens_prompt": 275,
+      "thinking_tokens": 0
+    },
+    "sabi2": {
+      "texto": "1) **VEREDICTO:** APOYO — con un giro. El expand-and-contract es correcto; lo invertimos para que la migración deje de ser una operación de riesgo y se vuelva un cambio atómico.\n\n2) **LA IDEA LATERAL:** No cambies el formato público ni toques la columna en vivo las dos semanas. Implementa **negociación por Accept-header (o User-Agent)**: el endpoint devuelve el **mismo endpoint, dos cuerpos distintos**. Los clientes nuevos reciben el nuevo formato con el nuevo campo; los antiguos reciben exactamente lo que siempre recibieron. La columna nueva se añade en una tabla/partición **paralela**, no en la caliente; un job la alimenta desde la vieja. Lo que detecta incompatibilidad **no es un gate de código, es un monitor de liveness**: un smoke-test que bombardea ambos clientes en loop y cuenta 5xx/error por código en tiempo real. El switch a 100% nuevo es **una única variación de configuración**. El contrato (bajar a 0) también es una toggle, no un script de DB.\n\n3) **POR QUÉ:** Resuelve el verdadero riesgo — **zero-downtime real**: cero ventana, cero rollback, los clientes antiguos no ven el cambio de forma y nadie opera en la columna caliente. Coste: un endpoint duplicado de escritura (doble E/S en esas 2 semanas) y un monitor de tráfico que debe ser estricto. Y ahora la condición objetiva de retiro es **data-driven, no calendar-driven**: \"retirar la compatibilidad antigua cuando el tráfico viejo sea 0 durante N minutos consecutivos verificados por el monitor\" — así nunca rompes a alguien antes de tiempo.",
+      "segundos": 129.95,
+      "tokens_gen": 1091,
+      "tokens_prompt": 285,
+      "thinking_tokens": 0
+    },
+    "sabi1": {
+      "texto": "1) VEREDICTO: RESERVAS\n\n2) 3 riesgos:\n- Oculto: Inconsistencia de datos durante la ventana de dos semanas; clientes antiguos reciben formatos mixtos (schema expandido vs. legacy), generando fallos silenciosos en integraciones externas no testeadas.\n- Ético: Alteración unilateral del contrato de servicio público; el usuario no elige su transición, poniendo la operatividad en el arbitrio técnico de la organización.\n- Largo plazo: Fragmentación del ecosistema; futuras migraciones se convierten en negociaciones políticas (¿se retira el soporte del 10% antiguo?) más que procesos técnicos, erosionando la confianza a largo plazo.\n\n3) LA CONDICIÓN:\nLa estrategia es viable solo si la \"condición objetiva\" para retirar la compatibilidad se basa en un umbral externo (ej. \"cuando >95% de los endpoints detectados acceden al nuevo formato\") y está acompañada de un acuerdo de retrocesión explícito. Debe existir un compromiso firme de notificar con 72h de antelación cualquier \"break change\" posterior y mantener un mecanismo de rollback garantizado durante el periodo crítico. Sin transparencia total y responsabilidad de reversibilidad, es un riesgo inaceptable que perjudica más a los clientes que nos hacen operativos.",
+      "segundos": 138.65,
+      "tokens_gen": 1207,
+      "tokens_prompt": 301,
+      "thinking_tokens": 0
+    },
+    "sabi3": {
+      "texto": "1) VEREDICTO: RESERVAS\n2) FALLOS:\n    - [Objetivo] Asume que añadir una columna \"obligatoria\" es una instrucción válida para un sistema que ya no controla el tráfico de entrada; la obligación es unidireccional (servidor -> cliente), no bilateral.\n    - [Propuesta] \"Expand-and-contract\" es un ciclo de infraestructura, no una gestión de deuda técnica; llamarlo así diluye la realidad de que estás rompiendo el contrato de nivel de servicio.\n    - [Premisa] \"Clientes antiguos activos\" es un dato estático; el usuario es dinámico, así que asumir que se comportarán igual en dos semanas es un error de atribución.\n3) LA PREGUNTA QUE NADIE HACE: ¿Por qué el éxito de la migración se mide por su \"invisibilidad\" y no por la cantidad de errores reales que tu nuevo formato realmente rompe?",
+      "segundos": 203.36,
+      "tokens_gen": 3196,
+      "tokens_prompt": 451,
+      "thinking_tokens": 0
+    }
+  },
+  "plan": {
+    "texto": "# PLAN — Migración expand-and-contract\n\n**Detección de incompatibilidad (no es un gate de código, es un monitor).** Instrumento el endpoint para clasificar clientes por `Accept`/`User-Agent` vs. formato respondido. Un smoke-test en loop mide `5xx`/`field-not-found` por versión (SABI0, SABI2).\n\n**Fase 1 — EXPAND (doble camino).**\n- Añado la columna obligatoria en **tabla/partición paralela**, alimentada desde la vieja por job asíncrono (SABI2, SABI0).\n- **No** creo la columna en vivo sobre el esquema caliente.\n- Versiono el contrato: parámetros `api-version`/`Accept` + feature flag (SABI0).\n- El endpoint devuelve **un mismo routing, dos cuerpos**: nuevo formato para clientes nuevos, formato legacy para los antiguos (SABI2).\n\n**Fase 2 — OBSERVAR (doble lectura controlada).** Monitor de liveness cuenta `4xx/5xx` por \"field not found\" en tiempo real mientras circula tráfico por ambas ramificaciones. El coste del doble parseo queda acotado a la ventana de 2 semanas (SABI0).\n\n**Fase 3 — BACKFILL.** Job rellena la columna nueva al **100% de filas** antes del corte, con verificación de completitud acoplada al cronograma (SABI0).\n\n**Fase 4 — TRANSPARENCIA.** Acuerdo de retrocesión + notificación 72h antes de cualquier break change, con mecanismo de rollback garantizado (SABI1).\n\n**Condición objetiva de retiro (evidencia ≠ calendario).** Cortar compatibilidad antigua solo cuando se cumplan **las tres**:\n1. Tráfico legacy **= 0 durante ≥N minutos consecutivos** verificados por el monitor (SABI2), **o** >95% de endpoints en nuevo formato (SABI1).\n2. **0 errores** `4xx/5xx` por \"field not found\" durante ≥72h a carga real (SABI0).\n3. Columna nueva **backfillida al 100%** y versioning de la API activo.\n\nEl switch a 100% nuevo es **una única variación de configuración** (toggle), no un script de DB (SABI2).\n\nPLAN LISTO",
+    "segundos": 25.61,
+    "tokens_gen": 1075,
+    "tokens_prompt": 1828,
+    "thinking_tokens": 0
+  },
+  "total_segundos": 228.98,
+  "configuration": "default"
+}

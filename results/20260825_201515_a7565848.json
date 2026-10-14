@@ -1,0 +1,50 @@
+{
+  "task": "20260825_201515_a7565848",
+  "objetivo": "Una tienda aplica primero un descuento del 20% y después un cupón adicional del 10% sobre el precio ya rebajado. Si el precio original es 250 euros, ¿cuál es el precio final y qué descuento equivalente único se ha aplicado? Explica el cálculo brevemente.",
+  "mode": "solo",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 20:16:12",
+  "user_message": "[user]\nUna tienda aplica primero un descuento del 20% y después un cupón adicional del 10% sobre el precio ya rebajado. Si el precio original es 250 euros, ¿cuál es el precio final y qué descuento equivalente único se ha aplicado? Explica el cálculo brevemente.",
+  "sabios": {
+    "sabi3": {
+      "texto": "ERROR: <urlopen error [Errno 111] Connection refused>",
+      "segundos": 0,
+      "tokens_gen": 0,
+      "tokens_prompt": 0,
+      "thinking_tokens": 0
+    },
+    "sabi2": {
+      "texto": "**Respuesta: 180 euros. Descuento equivalente: 28%.**\n\n**Cálculo paso a paso:**\n- Precio tras 20%: 250 × 0,80 = **200 €**\n- Precio tras cupón 10% (sobre el 200): 200 × 0,90 = **180 €**\n- Descuento total: (250 − 180) / 250 = 70/250 = **28%**\n\n**¿Por qué no es 30%?** Porque el cupón se aplica sobre el precio *ya rebajado*, no sobre el original. Los dos descuentos son multiplicativos (0,80 × 0,90 = 0,72), no aditivos (20% + 10% = 30%). El error común es sumar los porcentajes, sobreestimando el ahorro real en 2 puntos.\n\n**Clave mental:** 0,72 del precio original significa que pagas el 72% → descuento del 28%.",
+      "segundos": 33.75,
+      "tokens_gen": 390,
+      "tokens_prompt": 363,
+      "thinking_tokens": 0
+    },
+    "sabi0": {
+      "texto": "1) VEREDICTO: APOYO\n\n2) Argumentos técnicos:\n- Precio tras 20%: 250 × 0,80 = 200 €.\n- Precio tras cupón 10%: 200 × 0,90 = **180 €**.\n- Descuento equivalente único: (250 − 180)/250 = 70/250 = **28%**.\n- Verificación por factor compuesto: 0,80 × 0,90 = 0,72 → 250 × 0,72 = 180 €. Cierra.\n- Trampa común: **10% + 20% ≠ 30%**. Los descuentos compuestos, no se suman. La fórmula general es: `1 − (1−d₁)(1−d₂)`.\n\n3) LA CONDICIÓN: El cálculo es correcto y cerrado. Cambiaría el enfoque si esta lógica fuera para dinero real en producción: entonces habría que fijar redondeo (€ vs. céntimos), orden de aplicación de cupones para evitar doble descuento, y predecible taxonomía de cupones vs. promociones (lo que hoy da 28% mañana podría dar 27% por un redondeo de línea base). La matemática está bien; el riesgo es el edge case en la aplicación, no en la aritmética.",
+      "segundos": 38.84,
+      "tokens_gen": 491,
+      "tokens_prompt": 385,
+      "thinking_tokens": 0
+    },
+    "sabi1": {
+      "texto": "1) VEREDICTO: APOYO (cálculo directo y transparente)\n\n2) 3 RIESGOS:\n- **Oculto:** El cliente subestima la economía real (28% ≠ 20%+10%), afectando comparación de precios con otros canales\n- **Ético:** Opacidad en la comunicación de descuentos acumulativos puede percibirse como \"gripe\" psicológica para manipular percepción de ahorro\n- **Largo plazo:** Si todos usan esto, margen promedio erosionado + competencia responde con descuentos en capas similares, iniciando carrera al fondo\n\n3) LA CONDICIÓN:\nEl riesgo es aceptable SI: se comunica explícitamente \"28% equivalente aplicado\", y el margen bruto soporta el 2€ promedio de descuento sin comprometer rentabilidad ni precio mínimo. Sin transparencia, se convierte en arma de corto alcance.\n\nCálculo: 250 → 200€ (20% off) → 180€ (10% off). Descuento compuesto = 28% exacto.",
+      "segundos": 41.68,
+      "tokens_gen": 600,
+      "tokens_prompt": 432,
+      "thinking_tokens": 0
+    }
+  },
+  "respuesta_directa": {
+    "texto": "## Cálculo\n\n**Precio tras el 20% de descuento:**\n$$250 \\times 0{,}80 = 200 \\text{ euros}$$\n\n**Precio tras el cupón del 10% sobre los 200 €:**\n$$200 \\times 0{,}90 = 180 \\text{ euros}$$\n\n**Precio final = 180 euros.**\n\n## Descuento equivalente único\n\n$$250 - 180 = 70 \\text{ euros de ahorro}$$\n$$\\frac{70}{250} = 0{,}28 = \\textbf{28\\%}$$\n\n**Explicación breve:** los descuentos consecutivos **no se suman** (daría un falso 20% + 10% = 30%). Se multiplican los factores de conservación:\n\n$$0{,}80 \\times 0{,}90 = 0{,}72 \\Rightarrow 72\\% \\text{ del original} \\Rightarrow \\text{descuento} = 100\\% - 72\\% = \\textbf{28\\%}$$\n\nUna verificación directa confirma el resultado: $250 \\times 0{,}72 = 180$ €, igual que el obtenido por pasos.\n\n**Respuesta:** precio final **180 €**, descuento equivalente único **28 %** (no 30 %).",
+    "segundos": 15.59,
+    "prompt_tokens": 839,
+    "completion_tokens": 669,
+    "thinking_tokens": 0,
+    "total_tokens": 1508
+  },
+  "total_segundos": 57.27,
+  "configuration": "default"
+}

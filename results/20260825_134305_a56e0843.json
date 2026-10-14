@@ -1,0 +1,49 @@
+{
+  "task": "20260825_134305_a56e0843",
+  "objetivo": "Redacta un plan de 4 pasos para migrar una API sin tiempo de inactividad. Debe incluir compatibilidad hacia atrás, migración gradual, observabilidad y rollback. Sé concreto y numera los pasos.",
+  "mode": "sabios",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 13:45:38",
+  "user_message": "[user]\nRedacta un plan de 4 pasos para migrar una API sin tiempo de inactividad. Debe incluir compatibilidad hacia atrás, migración gradual, observabilidad y rollback. Sé concreto y numera los pasos.",
+  "sabios": {
+    "sabi3": {
+      "texto": "1) VEREDICTO: RESERVAS\n\n2) 3 fallos lógicos o premisas rotas:\n- Premisa invisible: Asume que \"compatibilidad hacia atrás\" es técnicamente alcanzable sin restricciones de versión o breaking changes explícitos.\n- Falsa dicotomía: \"Migración gradual\" vs \"tiempo de inactividad\" — no explica cómo dividir tráfico por segmentos sin crear cuellos de botella o puntos únicos de fallo.\n- Causalidad circular: \"Observabilidad\" se cita como requisito, no como validación previa — sin métricas en tiempo real, el rollback es guesswork.\n\n3) LA PREGUNTA QUE NADIE HACE:\n¿Qué pasa cuando el tráfico real desborda el modelo de tránsito gradual planificado? ¿Quién define el criterio exacto de \"rollback exitoso\" — volver al mismo estado o volver a un estado intermedio aceptable? La perfección técnica no salva la arquitectura de puntos únicos de fallo humanos.",
+      "segundos": 40.84,
+      "tokens_gen": 377,
+      "tokens_prompt": 437,
+      "thinking_tokens": 0
+    },
+    "sabi0": {
+      "texto": "**1) VEREDICTO: RESERVAS (con apoyo condicionado)**\n\nEl plan es técnicamente viable con la arquitectura correcta, pero una API REST \"genérica\" no da tiempo de inactividad por defecto. Depende de que el diseño original cumpla 3 requisitos de infraestructura, no de los 4 pasos redactados.\n\n**2) 3 argumentos técnicos concretos:**\n- **Compatibilidad hacia atrás:** Exige mantener **versionado de URL** (`/v1/`, `/v2/`) y TTL de caché consistente (15-30 min en CDN/gateway). Sin versionado, \"hacia atrás\" es imposible; solo tienes compatibilidad momentánea.\n- **Migración gradual:** Viable vía **weighting por header/cabecera** (`X-API-Version`) en el gateway (Nginx/Envoy, L7). Escala 100%→10%→0% en window de **5-15 min**. Requiere detección de estado del cliente; sin client-versioning en request headers, la gradualidad se cae.\n- **Rollback:** Solo es atómico si la **ruta nueva está desplegada antes** de activar tráfico (blue/green + drain). Sin eso, el rollback es manual y costoso.\n- **Observabilidad:** Rake **códigos HTTP 426/503** y métricas de tasa de error por versión; sin trazabilidad por version, no detectas la cola de migración.\n\n**3) LA CONDICIÓN:** Que el API se despliegue detrás de un **gateway reversible con versionado L7** y que la nueva ruta esté **verificada en staging con data-compatibilidad** (schomas/mocks idénticos). Sin estos dos, la \"sin tiempo de inactividad\" se convierte en \"brecha de 1-3 min en cada deploy\", no cero.\n\n¿Es un microservicio en contenedores/K8s (apoyo real) o un despliegue monolítico clásico? El veredicto cambia según la plataforma.",
+      "segundos": 59.29,
+      "tokens_gen": 596,
+      "tokens_prompt": 261,
+      "thinking_tokens": 0
+    },
+    "sabi2": {
+      "texto": "**1) VEREDICTO: RESERVAS** — tu plan es correcto, pero el patrón \"keep both\" es un foso sin fondo: nadie desmantela la v1, ambos codebases pagan mantenimiento, y la compatibilidad se vuelve una burbuja muerta.\n\n**2) LA IDEA LATERAL: \"API que se describe a sí misma\" (versionado por demanda).**\n\nEn vez de `compatibilidad hacia atrás` como capa estática, la v1 se convierte en su propio sistema de negociación. La API responde metadatos (una pequeña cabecera `X-Current-Schema` o un endpoint `/_self/versions`), y la migración no es \"desplegar v2\" sino que v1 **empieza a ofrecer más** y cada cliente decide qué consume según lo que declare.\n\nEl giro: **desmantela el dualismo**. No mantienes dos codebases; hay uno solo que evolucionan, y el cliente mayorista que ya pagó por v1 sigue yendo igual porque *la API le confirma* qué versiones soporta antes de procesar.\n\n**3) POR QUÉ:**\n- **Problema real:** elimina el mayor coste del patrón tradicional —el mantenimiento y la deuda de la v1 olvidada— y el riesgo de que \"ambas\" nunca se separen.\n- **Coste:** introduces un protocolo de auto-descripción mínimo, auditar la integridad de la negociación, y la complejidad del cliente debe decidir sobre su propio destino. Es viable porque el \"catálogo de versiones\" es solo metadatos en caché, sin coste de red real.",
+      "segundos": 61.32,
+      "tokens_gen": 589,
+      "tokens_prompt": 271,
+      "thinking_tokens": 0
+    },
+    "sabi1": {
+      "texto": "1) VEREDICTO: RESERVAS. La promesa de tiempo cero es el primer punto de fallo; la confianza en la tecnología cede lugar a la necesidad política de no detenerse.\n\n2) RIESGOS:\n- Oculto: Las herramientas de observabilidad crearán dependencia de un único proveedor crítico que controlará tu capacidad de respuesta.\n- Ético: El rol de \"siempre online\" impone estrés tóxico al equipo y reduce la calidad del código a favor de la operatividad pura.\n- Largo Plazo: La compatibilidad hacia atrás generará deuda técnica invisible y arquitectural hasta que sea demasiado tarde para revertir.\n\n3) LA CONDICIÓN: Solo aceptable si existe autoridad suprema para abortar la migración en menos de 10 minutos y la arquitectura soporta la deuda sin colapsar en 6 meses.",
+      "segundos": 121.34,
+      "tokens_gen": 2328,
+      "tokens_prompt": 287,
+      "thinking_tokens": 0
+    }
+  },
+  "plan": {
+    "texto": "**PLAN: Migración de API REST sin tiempo de inactividad**\n\n**Paso 1 — Compatibilidad hacia atrás (versionado L7).** Versionado dual por URL (`/v1/`, `/v2/`) y por cabecera (`X-API-Version`) en el gateway (Nginx/Envoy). Fijar TTL de caché 15-30 min en CDN/gateway para evitar mezcla de respuestas. Mantener v1 operativo hasta el 0% de tráfico. *(SABI0: sin versionado \"hacia atrás\" es imposible; SABI2 añade endpoint `/_self/versions` como metadatos opcionales para negociación de esquema.)*\n\n**Paso 2 — Nueva ruta desplegada antes del tráfico (blue/green + drain).** v2 desplegada y verificada en staging con datos y mocks idénticos ANTES de enviar un solo usuario. Drain controlado del v1. Sin esto, el rollback es manual (SABI0).\n\n**Paso 3 — Migración gradual por weighting.** Redirigir tráfico escalonado 100% v1 → 50% → 0% v2 en ventanas de 5-15 min, con corte por segmentos (cliente, geo). Definir el criterio de rollback **antes**: tasa de error >1% o p99 > 2x. *(SABI3: evita la causalidad circular de \"observabilidad\" y el desbordamiento no planificado.)*\n\n**Paso 4 — Observabilidad y rollback atómico.** Métricas **por versión**: códigos 426/503, tasa de error, latencia p99, en dashboard con alertas. Autoridad declarada de abortar en <10 min. Rollback = reconectar el gateway a v1 (v2 ya desplegada → cero downtime). Evitar dependencia de un único proveedor de observabilidad. *(SABI0 + SABI1: la promesa de \"tiempo cero\" depende de la arquitectura, no de los pasos.)*\n\n**RIESGO RECOGIDO (SABI1/3):** si el gateway es punto único de fallo, añadir health-check redundante y definir \"rollback exitoso\" = volver al último estado con métricas estables, no al estado perfecto.\n\nPLAN LISTO",
+    "segundos": 32.09,
+    "tokens_gen": 1375,
+    "tokens_prompt": 1698,
+    "thinking_tokens": 0
+  },
+  "total_segundos": 153.43,
+  "configuration": "default"
+}

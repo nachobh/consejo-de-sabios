@@ -1,0 +1,48 @@
+{
+  "profiles": {
+    "default": {
+      "name": "Configuración por defecto",
+      "description": "Los prompts actuales de sabios2.",
+      "prompts": {
+        "sabi0": "sabi0",
+        "sabi1": "sabi1",
+        "sabi2": "sabi2",
+        "sabi3": "sabi3",
+        "orquestador": "orquestador",
+        "arbitro": "arbitro"
+      }
+    },
+    "medico": {
+      "name": "Consejo de Sabios Médico",
+      "description": "Análisis clínico prudente, basado en evidencia y con señales de alarma.",
+      "prompts": {
+        "sabi0": "medico_sabi0", "sabi1": "medico_sabi1", "sabi2": "medico_sabi2", "sabi3": "medico_sabi3",
+        "orquestador": "medico_orquestador", "arbitro": "medico_arbitro"
+      }
+    },
+    "informatico": {
+      "name": "Consejo de Sabios Informático",
+      "description": "Arquitectura, implementación, seguridad, fiabilidad y pruebas de sistemas.",
+      "prompts": {
+        "sabi0": "informatico_sabi0", "sabi1": "informatico_sabi1", "sabi2": "informatico_sabi2", "sabi3": "informatico_sabi3",
+        "orquestador": "informatico_orquestador", "arbitro": "informatico_arbitro"
+      }
+    },
+    "legal": {
+      "name": "Consejo de Sabios Legal",
+      "description": "Jurisdicción, obligaciones, cumplimiento, negociación y riesgos jurídicos.",
+      "prompts": {
+        "sabi0": "legal_sabi0", "sabi1": "legal_sabi1", "sabi2": "legal_sabi2", "sabi3": "legal_sabi3",
+        "orquestador": "legal_orquestador", "arbitro": "legal_arbitro"
+      }
+    },
+    "economico_inversor": {
+      "name": "Consejo de Sabios Económico/Inversor",
+      "description": "Análisis financiero, riesgo, asignación de capital y preservación de patrimonio.",
+      "prompts": {
+        "sabi0": "economico_sabi0", "sabi1": "economico_sabi1", "sabi2": "economico_sabi2", "sabi3": "economico_sabi3",
+        "orquestador": "economico_orquestador", "arbitro": "economico_arbitro"
+      }
+    }
+  }
+}

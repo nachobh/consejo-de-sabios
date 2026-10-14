@@ -1,0 +1,49 @@
+{
+  "task": "20260825_190803_96be10a2",
+  "objetivo": "Evalúa esta afirmación: 'Después de cambiar el prompt, el tiempo medio de respuesta bajó de 10 a 8 segundos y los usuarios satisfechos subieron del 60% al 65%; por tanto, el prompt causó la mejora'. Señala al menos dos amenazas a la inferencia causal y propone un experimento A/B que las reduzca.",
+  "mode": "sabios",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 19:09:50",
+  "user_message": "[user]\nEvalúa esta afirmación: 'Después de cambiar el prompt, el tiempo medio de respuesta bajó de 10 a 8 segundos y los usuarios satisfechos subieron del 60% al 65%; por tanto, el prompt causó la mejora'. Señala al menos dos amenazas a la inferencia causal y propone un experimento A/B que las reduzca.",
+  "sabios": {
+    "sabi3": {
+      "texto": "ERROR: <urlopen error [Errno 111] Connection refused>",
+      "segundos": 0,
+      "tokens_gen": 0,
+      "tokens_prompt": 0,
+      "thinking_tokens": 0
+    },
+    "sabi0": {
+      "texto": "**VEREDICTO:** RESERVAS\n\n**Argumentos técnicos:**\n\n1. **Correlación ≠ causalidad por confusión temporal.** El cambio de prompt y la mejora son coincidentes, no previos. Una tercera variable (nuevo despliegue del modelo, cambio de infraestructura de serving, ajuste de temperatura/Top-P, cambio de región geográfica de los usuarios) podría explicar ambas. Con n no informado y sin randomización, la \"inferencia\" es una observación de correlación r ≈ 0.05 sobre 2 métricas, insuficiente.\n\n2. **Regresión a la media + ruido binario.** De 10 a 8 s puede ser variabilidad natural entre despliegues. El \"60%→65% de satisfacción\" carece de escala ni intervalos de confianza: si es una escala Likert(1-5), 60-65% es binarización arbitraria de una variable continua, ocultando dirección y dispersión.\n\n3. **Atribución única sin control de confusión.** No se mide qué cambió simultáneamente. Sin un grupo de control no expuesto al nuevo prompt, no se puede aislar su contribución frente al resto del rollout. Es decir, la hipótesis \"el prompt causó X\" no es falsable con los datos actuales.\n\n**CONDICIÓN:** Publicarías el veredicto si tu A/B da un lift significativo y aislado: prompt vs. control, métrica de latencia con p<0.05 y ΔNPS/CSAT medido sobre muestra representativa con intervalo de confianza del 95% (p. ej., +2 puntos absolutos ±1, excluyendo otras variables de confusión).",
+      "segundos": 25.29,
+      "tokens_gen": 410,
+      "tokens_prompt": 400,
+      "thinking_tokens": 0
+    },
+    "sabi1": {
+      "texto": "1) VEREDICTO: RESERVAS\n\n2) Riesgos:\n- Oculto: Variables confundidas (tráfico horario, eventos externos, actualizaciones de backend) se correlacionan en tiempo sin establecer causalidad\n- Ético: Infringir intencional o no con datos para validar narrativa interna de \"éxito fácil\" ante dirección\n- Largo plazo: Crear mito de solución superficial cuando problemas estructurales de latencia real persisten\n\n3) LA CONDICIÓN: Solo aceptable con experimento A/B controlado: split real de tráfico, aislamiento de variables temporales, N mínimo 5k usuarios con intervalo de confianza del 95%, y métricas de validez del prompt (re-requests, error rates) como validadores secundarios. No aprobar narrativa hasta ver control externo.",
+      "segundos": 52.36,
+      "tokens_gen": 700,
+      "tokens_prompt": 447,
+      "thinking_tokens": 0
+    },
+    "sabi2": {
+      "texto": "1) **VEREDICTO:** RESERVAS. El salto de 10→8s y 60→65% es real, pero la correlación con el *prompt* es débil: no has aislado la causa.\n\n2) **LA IDEA LATERAL:** Olvida el A/B por usuario (seleccionado, sesgado) y haz un **sweep por request con asignación por entropía de hash (hash de IP/IP+UA como instrumento exógeno)**. Asigna el prompt \"nuevo\" vs \"viejo\" a cada *petición* según un valor no relacionado con la preferencia del usuario, y valida causalidad con **placebo test** (el efecto debe desaparecer si usas el hash de una variable neutra como el usuario) y **balance de entropía**. Girón extra: mide **latencia percibida** (tiempo hasta primer carácter renderizado) en el cliente, no el *time-to-first-token* del servidor.\n\n3) **POR QUÉ:** El problema real es **confusión**: en esos 2 días también pudieron subir el hardware, la red, el tráfico o la versión del UI. Un A/B por usuario no filtra eso; el instrumental exógeno sí, porque la asignación es aleatoria *respeto a la confusión*. Coste principal: ~2 semanas de tráfico + infra de instrumentación de evento en cliente. **Si el placebo sigue mostrando efecto:** no es causalidad, baja el A/B clásico a plan B y prioriza controlar variables ocultas con un modelo de regresión estratificado por cohort.",
+      "segundos": 58.32,
+      "tokens_gen": 924,
+      "tokens_prompt": 378,
+      "thinking_tokens": 0
+    }
+  },
+  "plan": {
+    "texto": "**PLAN**\n\n**Amenazas a la inferencia causal:**\n\n1. **Confusión por variable omitida.** El cambio de prompt coincide en el tiempo con otros cambios no controlados (nuevo modelo, infraestructura, temperatura/Top-P, región, actualizaciones de backend, patrón de tráfico horario). Cualquier una explica ambas métricas → correlación no implica causalidad.\n2. **Regresión a la media y ruido.** Sin intervalos de confianza, el salto 10→8 s puede ser variabilidad natural entre despliegues.\n3. **Medición débil.** El 60→65% carece de escala ni IC; es una binarización arbitraria de una variable continua.\n4. **Ausencia de grupo de control.** Sin cohort no expuesta al nuevo prompt, la hipótesis no es falsable.\n\n**Experimento A/B propuesto:**\n\n1. **Hipótesis nula** H₀: no hay diferencia en latencia ni satisfacción entre prompts.\n2. **Randomización por request con hash (IP+UA)** — adopto la idea de SABI2 (instrumental exógeno) en vez del split por usuario de SABI1, para evitar sesgo de selección.\n3. Grupo control (prompt viejo) vs tratamiento (prompt nuevo); **manteniendo constante** modelo, infra, temperatura y región para aislar el prompt.\n4. **Cálculo de muestra** (power analysis) para detectar Δ=2 s y Δ=5 puntos de satisfacción con α=0.05 y poder 0",
+    "segundos": 48.11,
+    "tokens_gen": 2048,
+    "tokens_prompt": 1553,
+    "thinking_tokens": 0
+  },
+  "total_segundos": 106.44,
+  "configuration": "default"
+}

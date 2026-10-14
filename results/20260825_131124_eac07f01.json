@@ -1,0 +1,50 @@
+{
+  "task": "20260825_131124_eac07f01",
+  "objetivo": "Diseña pseudocódigo para procesar pagos contra un proveedor HTTP que puede responder 503 y que puede recibir dos veces la misma petición si hay timeout. Incluye backoff exponencial con jitter, máximo de reintentos, una clave de idempotencia y qué errores no deben reintentarse.",
+  "mode": "solo",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 13:15:13",
+  "user_message": "[user]\nDiseña pseudocódigo para procesar pagos contra un proveedor HTTP que puede responder 503 y que puede recibir dos veces la misma petición si hay timeout. Incluye backoff exponencial con jitter, máximo de reintentos, una clave de idempotencia y qué errores no deben reintentarse.",
+  "sabios": {
+    "sabi3": {
+      "texto": "1) VEREDICTO: RECHAZO — asume garantías operativas que son inventadas, no dadas.\n\n2) 3 fallos lógicos o premisas rotas:\n- Premisa rotura 1: El proveedor 503 es retryable estándar → Un 503 puede ser \"servicio temporalmente inoperable\", no es un error de cliente; asumimos que el jitter y backoff resuelven todo, pero no hay contrato de tolerancia del proveedor.\n- Premisa rotura 2: La idempotencia clave es universalmente válida → El sabio que propone la clave de idempotencia (tú) da por hecho que el proveedor la respeta y procesa el pago una sola vez bajo ese ID; si no lo hace, el mismo \"idempotente\" puede cobrarte dos veces o, peor, quedarte sin confirmación.\n- Premisa rotura 3: Timeout = fallo del proveedor (retryable) → Se ignora que el timeout podría ser red, CDN, o firewall intermedio; el backoff exponencial solo contra el mismo proveedor no protege contra colapsos en la red de salida.\n\n3) LA PREGUNTA QUE NADIE HACE: Si la petición idéntica se duplica, el proveedor procesa dos transacciones distintas bajo el mismo ID de idempotencia, ¿el sistema financiero te devuelve ambos recibos con un solo cargo, o dos cargos por un solo evento?",
+      "segundos": 69.08,
+      "tokens_gen": 565,
+      "tokens_prompt": 455,
+      "thinking_tokens": 0
+    },
+    "sabi2": {
+      "texto": "**1) VEREDICTO:** RESERVAS. El pseudocódigo \"blando\" (retry loop + backoff) es correcto pero es el camino que todos dibujan. Déjame darle el giro.\n\n**2) LA IDEA LATERAL:** Elimina el reintento en el cliente. Convierte el doble-cargo en una *feature*, no en el enemigo.\n- Diseña el `idempotency_key` como hash determinista de `(amount+currency+account+timestamp+nonce)` → el mismo evento genera la misma clave.\n- Enruta a una cola (SQS/Kafka/Redis Streams) con entrega **al-menos-una** pero consumo **exactamente-una**.\n- Tu cliente SOLO publica (fire-and-forget), 0 latencia de espera. La cola redelivera con su propio backoff+jitter interno.\n- Dedup en una línea: `if(confirmado[key]) revertir_cargo(); else procesar()`.\n\nEl doble cargo deja de ser una amenaza: se convierte en dinero gratis, porque converge al mismo key.\n\n**3) POR QUÉ:** El problema real NO es el 503, es el *double-charge* — la parte cara de la ecuación. La viabilidad: gateways modernos (Stripe, Paddle, Midtrans) ya dedupan por idempotency key, así que el servidor hace el trabajo, no el cliente. El coste: dependes de esa capacidad del proveedor, y renuncias al patrón \"reintentar y esperar\" — que solo añade latencia al usuario y complejidad al flujo de red.",
+      "segundos": 128.32,
+      "tokens_gen": 1337,
+      "tokens_prompt": 289,
+      "thinking_tokens": 0
+    },
+    "sabi0": {
+      "texto": "**VEREDICTO: APOYO** (con dos cláusulas obligatorias que no pueden omitirse)\n\n**Argumentos técnicos:**\n\n1. **El doble cobro es el riesgo de mayor coste, no el 503.** La clave de idempotencia SOLO salva si el proveedor dedupe por ella. Con Stripe pagas: tolera hasta 1000 duplicados/día por key, dedup real. Con SWIFT/bancos genéricos, a menudo NO dedupan → necesitas dedup-cliente con un set/DB de keys consumidas + TTL. Dos cobros por una factura = daño financiero irreversible. Define el contrato de idempotencia del proveedor antes de escribir código.\n\n2. **Backoff con \"full jitter\", no backoff fijo.** `delay = min(base · 2^attempt, cap) + random(0, delay·0.25)`. Con base=500 ms, cap=10 s: latencia máx ≈ 26 s totales en 5 intentos, y los spikes se distribuyen (evita thundering herd). Reintentos=3–5 es lo razonable para pagos: más implica retener fondos y latencia innecesaria.\n\n3. **Set correcto de no-reintentables.** Reintentan SOLO `503, 502, 504` (infra/carga). Nunca `4xx` (400/401/402/403/409/422) ni `500`. El 402 payment-required es de tu cliente, no del servidor; reintentarlo lo quemará infinitamente.\n\n**LA CONDICIÓN:** confírmame por escrito que el proveedor garantiza dedup por `Idempotency-Key` con un TTL acotado de dedup, o bien que implemento dedup-cliente persistente. Sin eso, el código es elegante pero no evita el doble cobro.",
+      "segundos": 146.6,
+      "tokens_gen": 1717,
+      "tokens_prompt": 279,
+      "thinking_tokens": 0
+    },
+    "sabi1": {
+      "texto": "1) VEREDICTO: RESERVAS.\n\n2) Riesgos:\n- Oculto: La idempotencia es frágil. Si la clave se corrompe o duplica, tu sistema regala dinero en silencio mientras el proveedor descubre el error días después.\n- Ético: El backoff excesivo durante fallos masivos puede bloquear nuevos ingresos, priorizando la reparación de transacciones pasadas sobre el flujo presente.\n- Largo plazo: Vinculas la integridad financiera a las reglas implícitas de su infraestructura. Si el proveedor evoluciona o quiebra, tu lógica de retries se vuelve tóxica y dependiente.\n\n3) LA CONDICIÓN:\nSolo aceptable si esta lógica vive detrás de un circuito de fallo externo y auditado por terceros, con un \"kill-switch\" humano disponible. La verdadera seguridad no es la perfección del algoritmo, sino la capacidad de aislar su fallo sin arrastrar a tu ecosistema. Solo si el fallo del proveedor nunca te quita el control de tu capital operativo.",
+      "segundos": 201.46,
+      "tokens_gen": 3186,
+      "tokens_prompt": 305,
+      "thinking_tokens": 0
+    }
+  },
+  "respuesta_directa": {
+    "texto": "```\nFUNCION ProcesarPago(orden, cliente, monto, datos_tarjeta):\n    idemClave = UUID4()  // clave de idempotencia persistente\n    intento = 0\n    maxIntentos = 5\n    tiempoBase = 0.5s\n    \n    // Persistir en la base de datos con estado \"PENDIENTE\"\n    // antes de enviar, usando idemClave como clave única:\n    si NO ExisteRegistro(idemClave):\n        GuardarRegistro(orden, cliente, monto, idemClave, \"PENDIENTE\")\n    SINO:\n        // Ya se procesó antes (reintento duplicado del proveedor)\n        devolver ResultadoExistente(idemClave)\n    \n    BUCILLO:\n        intento = intento + 1\n        tiempoEspera = (tiempoBase * 2^(intento-1)) + jitter(0, intento*100ms)\n        Esperar(tiempoEspera)\n        \n        RESPUESTA = LlamadaHTTP(\n            url       = \"https://proveedor/pagos\",\n            metodo    = \"POST\",\n            cuerpo    = { idemClave, orden, cliente, monto, datos_tarjeta },\n            cabecera  = { \"Idempotency-Key\": idemClave, \"Content-Type\": \"application/json\" },\n            timeout   = 8s\n        )\n        \n        SI RESPUESTA.codigo == 200:\n            ActualizarRegistro(idemClave, \"COMPLETADO\")\n            devolver Exito(orden, RESPUESTA.id_transaccion)\n        \n        SI RESPUESTA.codigo == 400 O 401 O 402 O 422:\n            // Errores de cliente / datos inválidos: NO reintentar\n            ActualizarRegistro(idemClave, \"FALLIDO\")\n            devolver Error(erroresNoReintentables, RESPUESTA.mensaje)\n        \n        SI RESPUESTA.codigo == 429:\n            // Too Many Requests: reintentar respetando Retry-After\n            Esperar(RESPUESTA.retryAfter)\n            seguir\n            \n        SI RESPUESTA.codigo == 503 O timeout O excepcion de red:\n            // Errores transitorios: reintentar si hay margen\n            \n            SI intento >= maxIntentos:\n                ActualizarRegistro(idemClave, \"PENDIENTE_MANUAL\")\n                devolver Fallido(\n                    \"max_reintentos_alcanzado\",\n                    \"Revisar manual o reintentar más tarde\"\n                )\n            \n            // Registrar para detectar duplicados:\n            // el proveedor usa Idempotency-Key; un 503 con cuerpo\n            // idéntico NO debe duplicar el cargo.\n            seguir  // vuelve al BUCILLO\n        \n        SI RESPUESTA.codigo >= 500 (distinto de 503):\n            ActualizarRegistro(idemClave, \"FALLIDO\")\n            devolver Error(erroresNoReintentables, \"Error 5xx no recuperable\")\n    \n    FIN BUCILLO\n```\n\n**Decisiones clave:**\n\n1. **Idempotencia**: `Idempotency-Key` generado con UUID4 y guardado en la base antes de enviar. Si el proveedor recibe la petición dos veces (timeout → reenvío), ambos cargos comparten la clave; el proveedor devuelve el mismo resultado en vez de duplicar el cobro.\n\n2. **Backoff exponencial con jitter**: `tiempoBase * 2^(intento-1)` más un jitter proporcional (`intento*100ms`) para evitar *thundering herd* cuando miles de clientes reintentan a la vez.\n\n3. **Máximo de reintentos**: 5. Tras agotarlos, se marca para revisión manual en vez de fallar abruptamente.\n\n4. **Errores que NO reintentan**:\n   - `4xx` de cliente (400, 401, 402, 422): datos inválidos o auth.\n   - `5xx` distintos de `503`: el proveedor confirma el fallo, no vale la pena reintentar.\n   - `503`, `429`, `timeout` y excepciones de red: **sí** reintentan (transitorios).\n\n5. **Estado persistente**: cada intento actualiza el registro con `idemClave`, permitiendo reconciliación tras caídas.\n\nPLAN LISTO",
+    "segundos": 26.84,
+    "prompt_tokens": 475,
+    "completion_tokens": 1143,
+    "thinking_tokens": 0,
+    "total_tokens": 1618
+  },
+  "total_segundos": 228.3,
+  "configuration": "default"
+}

@@ -1,0 +1,50 @@
+{
+  "task": "20260825_110403_6883c1ed",
+  "objetivo": "Extrae de esta frase los datos en formato JSON válido con las claves nombre, ciudad y años: 'Marta vive en Valencia y tiene 37 años.' No añadas texto fuera del JSON.",
+  "mode": "solo",
+  "rounds": 1,
+  "orq_rounds": 1,
+  "num_sabios": 4,
+  "inicio": "2026-08-25 11:07:34",
+  "user_message": "[user]\nExtrae de esta frase los datos en formato JSON válido con las claves nombre, ciudad y años: 'Marta vive en Valencia y tiene 37 años.' No añadas texto fuera del JSON.",
+  "sabios": {
+    "sabi2": {
+      "texto": "1) VEREDICTO: RECHAZO del enfoque obvio (regex frágil)\n\n2) LA IDEA LATERAL: Convierte el problema de extracción en problema de **traducción semántica invertida**. En vez de buscar patrones fijos (regex para \"años\", \"ciudad\"), entrena un minified-transformer (modelo de 50 MB en tokenizador compacto) que aprende a leer español natural y devolver JSON, sin reglas hardcodeadas. Bonus: el mismo modelo interpreta \"37 años\" vs \"años 37\" vs \"a 37 años\" vs \"vivir desde los 37\".\n\nRegla anti-locura: para esta frase concreta se ejecuta primero un parser de 3 líneas de fallback (regex + validación de tipos); solo si no pasa se llama al modelo. El modelo es la capa lateral, no la solución total.\n\n3) POR QUÉ: El problema real no es este JSON puntual, sino la **fragilidad de parsers de patrón fijo**: rompen con variaciones léxicas (\"tiene 37 años\" vs \"cuenta con 37\"). Un regex es frágil y obsolece en una semana de inputs reales. La solución lateral aporta **generalización gratis** (maneja cualquier sintaxis) con coste de infra mínimo (caching + fallback inmediato), zero mantenimiento de expresiones regulares.\n\nEl coste real: complejidad de despliegue y tokens por petición. Mitigado por el fallback que garantiza respuesta válida incluso cuando el modelo falla.",
+      "segundos": 47.64,
+      "tokens_gen": 535,
+      "tokens_prompt": 266,
+      "thinking_tokens": 0
+    },
+    "sabi0": {
+      "texto": "JSON de salida (cumplimiento directo de la extracción):\n\n```json\n{\n  \"nombre\": \"Marta\",\n  \"ciudad\": \"Valencia\",\n  \"años\": 37\n}\n```\n\n---\n\nEvaluación técnica de la tarea (no del dato, del proceso):\n\n**VEREDICTO:** APOYO\n\n1) **Fiabilidad de la fuente**: el corpus es un único oración no ambigua (sin negaciones, enumeraciones o ambigüedades de número). Probabilidad de error de extracción <1%.\n\n2) **Normalización de tipos**: \"37 años\" → entero `37`, no string. \"Valencia\" → sin acentos/puntuación. Esto evita errores en downstream (búsquedas, joins, filtros numéricos).\n\n3) **Riesgo de over-engineering**: no se necesita NLP. Un parser regex (`Marta` | `Valencia` | `\\d+ años`) resuelve el 99% de estos casos con coste O(1) y sin entrenamiento.\n\n**LA CONDICIÓN**: si la entrada fuera ruidosa (negaciones como *\"no tiene 40 años\"*, fechas, apodos, paréntesis), escalaría a un modelo con verificación por reglas, y ese sería el nuevo coste de complejidad.",
+      "segundos": 79.87,
+      "tokens_gen": 1011,
+      "tokens_prompt": 256,
+      "thinking_tokens": 0
+    },
+    "sabi1": {
+      "texto": "1) VEREDICTO: APOYO CONDICIONAL\n\n2) 3 riesgos\n- Oculto: El dato extraído pierde su contexto original, volviéndose frágil y fácilmente alterable fuera de su fuente.\n- Ético: Reducir una identidad humana a tres campos JSON es una forma de deshumanización algorítmica.\n- Largo plazo: Creamos dependencia de scripts de extracción manuales en lugar de arquitecturas de datos nativos y estables.\n\n3) LA CONDICIÓN\nAceptable solo si estos datos se estructuran bajo un contrato de gobernanza claro, protegiendo la privacidad y asegurando que el JSON sirva como fuente transparente de verdad, no como un artefacto aislado para manipulación.",
+      "segundos": 194.37,
+      "tokens_gen": 2478,
+      "tokens_prompt": 282,
+      "thinking_tokens": 0
+    },
+    "sabi3": {
+      "texto": "1) VEREDICTO: RESERVAS.\n2) 3 fallos lógicos o premisas rotas:\n   1. (Falacia de Unicidad): Asume que \"37 años\" tiene un solo significado ontológico (edad), ignorando ambigüedades contextuales como experiencia laboral o estado civil.\n   2. (Falacia de Rigoidez): Confía ciegamente en que el output será JSON puro; descuida que la naturaleza probabilística del modelo suele inyectar markdown o espacios invisibles que corrompen la validación estricta.\n   3. (Asumo de Fidelidad): Presupone que el texto de salida preservará \"Valencia\" y \"Marta\" idénticos a la entrada, cuando la normalización interna del modelo podría alterar mayúsculas o acentos silenciosamente.\n3) LA PREGUNTA QUE NADIE HACE: ¿Confiamos realmente en una máquina de probabilidades para estructurar datos exactos con precisión absoluta cuando su arquitectura fundamental es, por diseño, especulativa?",
+      "segundos": 205.99,
+      "tokens_gen": 2734,
+      "tokens_prompt": 432,
+      "thinking_tokens": 0
+    }
+  },
+  "respuesta_directa": {
+    "texto": "{\"nombre\": \"Marta\",\"ciudad\": \"Valencia\",\"años\": 37}\n\nEJECUCIÓN COMPLETA",
+    "segundos": 4.68,
+    "prompt_tokens": 452,
+    "completion_tokens": 192,
+    "thinking_tokens": 0,
+    "total_tokens": 644
+  },
+  "total_segundos": 210.67,
+  "configuration": "default"
+}
