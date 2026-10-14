@@ -3,8 +3,8 @@
 Pipeline multi-modelo dinámico con cerebro unificado y sabios mezcla Ornith/Qwen.
 
 Duplicado de `~/sabios` con cambios clave pedidos:
-- **Cerebro unificado**: Orquestador y Árbitro comparten el mismo modelo `run_ornith_35b_proxied.sh` (Ornith 35B Q8) en **solo 8205**. El system prompt distingue el rol (orquestador vs árbitro). Ahorra VRAM al levantar 1 proceso en vez de 2.
-- **Sabios mezcla**: `run_ornith_9b.sh` (pares: sabi0,2,4…) + `run_qwen35_9b.sh` (impares: sabi1,3,5…) alternando.
+- **Cerebro unificado**: Orquestador y Árbitro comparten el mismo modelo Ornith 35B Q8 en **solo 8205**, arrancado con `launch_cerebro.sh` / `launch_role.sh`. El system prompt distingue el rol (orquestador vs árbitro). Ahorra VRAM al levantar 1 proceso en vez de 2.
+- **Sabios mezcla**: `launch_sabios.sh` arranca pares con Ornith-9B (sabi0,2,4…) e impares con Qwen3.5-9B (sabi1,3,5…) alternando.
 - **N configurable**: Elige con cuántos sabios arrancar (1-12) vía `launch_all.sh N`, `NUM_SABIOS=N`, `config.json` o desde el frontend.
 - **Prompts dinámicos**: Añade sabios y genera nuevos system prompts seleccionables desde el `.html`.
 
@@ -13,7 +13,7 @@ Duplicado de `~/sabios` con cambios clave pedidos:
 ```
 Objetivo
   ↓
-Rondas de sabios (1..5, paralelo, N configurable)
+Rondas de sabios (1..5, N configurable; cada ronda en paralelo vía ThreadPoolExecutor, máx 8 workers)
   - sabi0 (8201) Ornith-9B   Técnico
   - sabi1 (8202) Qwen3.5-9B  Estratega
   - sabi2 (8203) Ornith-9B   Creativo
@@ -26,7 +26,8 @@ Cerebro (8205) Ornith 35B → PLAN  (prompt orquestador.txt)
   ↓
 Rondas Árbitro+Cerebro (1..3)  — mismo puerto 8205, distinto prompt
   Árbitro (8205, prompt arbitro.txt) → VEREDICTO
-  Cerebro (8205, prompt orquestador.txt) → PLAN REVISADO
+  (si no es la última ronda) Cerebro (8205, prompt orquestador.txt) → PLAN REVISADO
+  → la revisión ocurre solo ENTRE rondas: N rondas producen N-1 planes revisados
   ↓
 Cerebro (8205) → EJECUCIÓN
 ```
@@ -70,12 +71,15 @@ Para parar ambos servicios:
 ```
 
 Config persistida en `~/sabios2/config.json` (`{"num_sabios":4}`). Las asignaciones
-de prompts se guardan en `configurations.json`; la configuración inicial es
-**Configuración por defecto** y reproduce los `.txt` actuales.
+de prompts se guardan en `configurations.json`; la configuración **activa** es la
+de `prompt_configuration` en `config.json` — actualmente **`informatico`** (el
+código usa `default` solo como fallback si no hay ninguna activa).
 
 ## Proxy (API OpenAI-compatible) — proxy unificado en 8081
 
-v1 y v2 comparten el proxy en **8081** (usas uno u otro, nunca ambos). Prompts/web de v2 siguen en 9082/9080 para no colisionar:
+Ambos servidores HTTP del proxy (`consejo_proxy.py`) se enlazan a **0.0.0.0**
+(accesibles desde la red); localmente los clientes los alcanzan vía
+`127.0.0.1`. v1 y v2 comparten el proxy en **8081** (usas uno u otro, nunca ambos). Prompts/web de v2 siguen en 9082/9080 para no colisionar:
 
 ```bash
 ~/sabios2/proxy/start.sh         # proxy en :8081 + prompts en :9082 + web en :9080
@@ -96,7 +100,7 @@ Override vía env: `CONSEJO_PROXY_PORT`, `CONSEJO_PROMPTS_PORT`, `CONSEJO_WEB_PO
 ## CLI (consejo.py)
 
 ```bash
-python3 ~/sabios2/consejo.py "TU OBJETIVO" --mode solo          # baseline cerebro
+python3 ~/sabios2/consejo.py "TU OBJETIVO" --mode solo          # cerebro directo (ojo: FASE 0 de sabios se ejecuta igual)
 python3 ~/sabios2/consejo.py "TU OBJETIVO" --mode sabios        # sabios + plan
 python3 ~/sabios2/consejo.py "TU OBJETIVO" --mode full          # completo
 python3 ~/sabios2/consejo.py "TU OBJETIVO" --num-sabios 6 --rounds 2 --orq-rounds 2
@@ -104,7 +108,10 @@ python3 ~/sabios2/consejo.py "TU OBJETIVO" --configuration default
 ```
 
 Flags:
-- `--mode full|sabios|solo`
+- `--mode full|sabios|solo` — en `pipeline.py` la FASE 0 (rondas de sabios) se
+  ejecuta **siempre**, antes de comprobar el modo: en `solo` los sabios se
+  consultan pero su respuesta no se usa (el cerebro responde en directo,
+  baseline sin consejo); en `sabios` se devuelve el plan sin rondas de árbitro.
 - `--rounds N` (1-5)
 - `--orq-rounds N` (1-3)
 - `--num-sabios N` (1-12, default config.json o 4)
@@ -190,7 +197,7 @@ pueden guardar cambios, desplegar o matar los modelos. La API equivalente es
 Para preparar una instalación nueva:
 
 ```bash
-./setup.sh                 # descarga los tres modelos GGUF
+./setup.sh                 # descarga 6 archivos: 3 GGUF + 3 mmproj (uno de cada por modelo)
 ./setup.sh --skip-download # solo muestra/prepara la operación sin descargar
 ./TEST_GUIDE.sh
 ```
@@ -202,8 +209,8 @@ redistribuirlos.
 
 ## VRAM estimada
 
-N=4: 2×Ornith-9B +2×Qwen-9B (~5G c/u, ctx 100K) + 1×35B (~20G, ctx 120K) ≈ 40G (vs 58G de v1 con 2 modelos grandes).
-N=8: ~60G. Cabe en 96G junto a producción (~37G en :8181). Si compite, baja ctx en `launch_sabios.sh`.
+N=4: 2×Ornith-9B +2×Qwen-9B (~5G c/u, ctx 131072 = 128K) + 1×35B (~20G, ctx 262144 = 256K) ≈ 40G (vs 58G de v1 con 2 modelos grandes).
+N=8: ~60G. Cabe en 96G junto a producción (~37G en :8181). Si compite, baja `context` en `config.json` / `SABIOS_CTX` en `launch_sabios.sh`.
 
 ## Logs
 
@@ -273,7 +280,7 @@ ejecutar su oráculo en un agente con herramientas.
 
 |  | sabios | sabios2 |
 |--|--|--|
-| Cerebro | 2 procesos 8205 (35A3B) +8206 (27B) | 1 proceso 8205 Ornith 35B (mismo GGUF que `run_ornith_35b_proxied.sh`, dos prompts) |
+| Cerebro | 2 procesos 8205 (35A3B) +8206 (27B) | 1 proceso 8205 Ornith 35B (`launch_cerebro.sh`/`launch_role.sh`, dos prompts) |
 | Sabios | 4× Qwen3.5-9B | N× mezcla Ornith-9B/Qwen3.5-9B alternando |
 | N configurable | no | sí (1-12) vía launch, CLI, API y web |
 | Proxy/web | 8081/8082/8080 | 8081/9082/9080 (proxy 8081 compartido) |
@@ -282,5 +289,5 @@ ejecutar su oráculo en un agente con herramientas.
 ## Notas de diseño
 
 - Mismo `pipeline.py` como fuente de verdad (CLI y proxy comparten lógica).
-- Sabios en paralelo; rondas 2+ ven opiniones previas.
+- Los sabios se lanzan de forma **secuencial** en `launch_sabios.sh` (evita el pico de VRAM de cargas paralelas); el paralelismo real está en `pipeline.py`, que consulta a los sabios de cada ronda con un `ThreadPoolExecutor` (máx 8 workers). Rondas 2+ ven opiniones previas.
 - Cerebro reutiliza KV cache prompt en 8205 para plan/revisión/ejecución vs árbitro sin reinicio.
